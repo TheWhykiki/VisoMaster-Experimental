@@ -86,7 +86,7 @@ if not exist "%GIT_DIR%\bin\git.exe" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to download PortableGit.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     echo Extracting PortableGit...
     mkdir "%GIT_DIR%" >nul 2>&1
@@ -94,7 +94,7 @@ if not exist "%GIT_DIR%\bin\git.exe" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to extract PortableGit.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     del "%GIT_ZIP%"
 )
@@ -120,7 +120,7 @@ if exist "%APP_DIR%" (
                     echo ERROR: Failed to pull updates.
                     popd
                     set "PATH=%OLD_PATH%"
-                    exit /b 1
+                    goto :FatalError
                 )
                 echo Repository updated.
                 set "NEEDS_INSTALL=true"
@@ -140,7 +140,7 @@ if exist "%APP_DIR%" (
         if !ERRORLEVEL! neq 0 (
             echo ERROR: Failed to clone repository.
             set "PATH=%OLD_PATH%"
-            exit /b 1
+            goto :FatalError
         )
         set "NEEDS_INSTALL=true"
     )
@@ -150,7 +150,7 @@ if exist "%APP_DIR%" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to clone repository.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     set "NEEDS_INSTALL=true"
 )
@@ -162,7 +162,7 @@ if not exist "%PYTHON_DIR%\python.exe" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to download Python.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     echo Extracting Python...
     mkdir "%PYTHON_DIR%" >nul 2>&1
@@ -189,7 +189,7 @@ if not exist "%UV_DIR%\uv.exe" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to download uv.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     echo Extracting uv...
     mkdir "%UV_DIR%" >nul 2>&1
@@ -204,7 +204,7 @@ if not exist "%VENV_DIR%\Scripts\python.exe" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to create virtual environment.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     set "NEEDS_INSTALL=true"
 )
@@ -216,7 +216,7 @@ if /I "!NEEDS_INSTALL!"=="true" (
         echo ERROR: Requirements file not found: "!REQUIREMENTS!"
         echo Please check your configuration or the repository files.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     pushd "%APP_DIR%"
     "%UV_DIR%\uv.exe" pip install -r "!REQUIREMENTS!" --python "%VENV_DIR%\Scripts\python.exe"
@@ -225,7 +225,7 @@ if /I "!NEEDS_INSTALL!"=="true" (
     if !INSTALL_ERROR! neq 0 (
         echo ERROR: Dependency installation failed. Check your requirements file.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     echo Dependencies installed successfully.
 ) else (
@@ -261,7 +261,7 @@ if not exist "%FFMPEG_PATH_VAR%\ffmpeg.exe" (
     if !ERRORLEVEL! neq 0 (
         echo ERROR: Failed to download FFmpeg.
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     echo Extracting FFmpeg...
     powershell -Command "Expand-Archive -Path '%FFMPEG_ZIP%' -DestinationPath '%FFMPEG_EXTRACT_DIR%' -Force"
@@ -269,7 +269,7 @@ if not exist "%FFMPEG_PATH_VAR%\ffmpeg.exe" (
         echo ERROR: Failed to extract FFmpeg.
         del "%FFMPEG_ZIP%"
         set "PATH=%OLD_PATH%"
-        exit /b 1
+        goto :FatalError
     )
     del "%FFMPEG_ZIP%"
 )
@@ -286,13 +286,27 @@ if exist "%APP_DIR%\%MAIN_PY%" (
     set "FFMPEG_PATH=%FFMPEG_PATH_VAR%"
     set "PATH=%FFMPEG_PATH_VAR%;%PATH%"
     "%VENV_DIR%\Scripts\python.exe" "%MAIN_PY%" %MAIN_ARGS%
+    set "APP_EXIT_CODE=!ERRORLEVEL!"
     popd
+    if not "!APP_EXIT_CODE!"=="0" (
+        echo.
+        echo ERROR: %MAIN_PY% exited with error code !APP_EXIT_CODE!.
+        goto :FatalError
+    )
 ) else (
-    echo ERROR: main.py not found in "%APP_DIR%".
-    exit /b 1
+    echo ERROR: %MAIN_PY% not found in "%APP_DIR%".
+    goto :FatalError
 )
 
 echo.
 echo Application closed. Press any key to exit...
 pause >nul
 endlocal
+exit /b 0
+
+:FatalError
+echo.
+echo Startup failed. Press any key to keep this window open and review the error above.
+pause >nul
+endlocal
+exit /b 1
