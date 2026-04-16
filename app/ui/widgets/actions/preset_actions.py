@@ -5,12 +5,16 @@ from typing import TYPE_CHECKING
 from functools import partial
 from send2trash import send2trash
 
+from app.helpers.paths import ensure_project_dir
 from app.ui.widgets.actions import common_actions as common_widget_actions
 from app.helpers.miscellaneous import ParametersDict
 
 if TYPE_CHECKING:
     from app.ui.main_ui import MainWindow
     from PySide6.QtWidgets import QListWidgetItem
+
+
+PRESETS_DIR = ensure_project_dir("presets")
 
 
 def control_preset_toggle(main_window: "MainWindow"):
@@ -38,10 +42,10 @@ def rename_preset(main_window: "MainWindow", item: "QListWidgetItem"):
     )
 
     if ok and new_name and new_name != old_name:
-        old_path = Path("presets") / f"{old_name}.json"
-        new_path = Path("presets") / f"{new_name}.json"
-        old_path_ctl = Path("presets") / f"{old_name}_ctl.json"
-        new_path_ctl = Path("presets") / f"{new_name}_ctl.json"
+        old_path = PRESETS_DIR / f"{old_name}.json"
+        new_path = PRESETS_DIR / f"{new_name}.json"
+        old_path_ctl = PRESETS_DIR / f"{old_name}_ctl.json"
+        new_path_ctl = PRESETS_DIR / f"{new_name}_ctl.json"
 
         if new_path.exists():
             QtWidgets.QMessageBox.warning(
@@ -73,9 +77,9 @@ def rename_preset(main_window: "MainWindow", item: "QListWidgetItem"):
 def delete_preset(main_window: "MainWindow", item: "QListWidgetItem"):
     """Rename the selected preset"""
     delete_preset = item.text()
-    delete_path = Path("presets") / f"{delete_preset}.json"
+    delete_path = PRESETS_DIR / f"{delete_preset}.json"
     delete_path = str(delete_path).replace("/", "\\")
-    delete_path_ctl = Path("presets") / f"{delete_preset}_ctl.json"
+    delete_path_ctl = PRESETS_DIR / f"{delete_preset}_ctl.json"
     delete_path_ctl = str(delete_path_ctl).replace("/", "\\")
 
     try:
@@ -120,11 +124,7 @@ def setup_preset_list_context_menu(main_window: "MainWindow"):
 def refresh_presets_list(main_window: "MainWindow"):
     """Refresh the presets list with all JSON files in the presets directory"""
     main_window.presetsList.clear()
-    presets_dir = Path("presets")
-    if not presets_dir.exists():
-        presets_dir.mkdir(exist_ok=True)
-
-    for json_file in presets_dir.glob("*.json"):
+    for json_file in PRESETS_DIR.glob("*.json"):
         if not json_file.name.endswith("_ctl.json"):
             main_window.presetsList.addItem(json_file.stem)
 
@@ -182,10 +182,8 @@ def save_current_as_preset(main_window: "MainWindow"):
             return
 
     if ok and name:
-        preset_path = Path("presets") / f"{name}.json"
-        preset_path.parent.mkdir(exist_ok=True)
-        preset_path_ctl = Path("presets") / f"{name}_ctl.json"
-        preset_path_ctl.parent.mkdir(exist_ok=True)
+        preset_path = PRESETS_DIR / f"{name}.json"
+        preset_path_ctl = PRESETS_DIR / f"{name}_ctl.json"
 
         # Get current parameters but exclude input/output paths
         current_params = {}
@@ -222,14 +220,14 @@ def apply_selected_preset(main_window: "MainWindow"):
     if not current_item:
         return
 
-    preset_path = Path("presets") / f"{current_item.text()}.json"
+    preset_path = PRESETS_DIR / f"{current_item.text()}.json"
     if not preset_path.exists():
         return
 
     with open(preset_path, "r") as f:
         preset_params = json.load(f)
 
-    preset_path_ctl = Path("presets") / f"{current_item.text()}_ctl.json"
+    preset_path_ctl = PRESETS_DIR / f"{current_item.text()}_ctl.json"
     if not preset_path_ctl.exists():
         return
 

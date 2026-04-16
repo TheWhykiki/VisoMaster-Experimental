@@ -62,25 +62,38 @@ VisoMaster-Fusion includes all the great features of the original plus major enh
     -   **Miniconda** ([Download](https://www.anaconda.com/download))
         <br> or
     -   **uv** ([Installation choices])(https://docs.astral.sh/uv/getting-started/installation/)
+    -   The currently maintained dependency set in this repo is `requirements_cu129.txt`
 
 ## **Installation Guide (VisoMaster-Fusion)**
 
+## Running Modes
+
+This repository now supports two separate access modes side by side:
+- **Original Desktop GUI**: the full native `PySide6` application for local use
+- **Web Console**: a browser-accessible control surface for jobs, presets and workspace state
+
+The desktop GUI remains the primary processing application. The web mode is an additional network-accessible entrypoint and does not replace the original GUI.
+
 ### **Portable version**
 
-Download only the Run_Portable.bat file from this repo (you don't need to clone the whole repo) from link below and put it in a new directory were you want to run VisoMaster from. Then just execute the bat file to run VisoMaster. Portable dependencies will be installed on the first run to portable-files directory.
+Download only the `Start_Portable.bat` file from this repo (you don't need to clone the whole repo) from link below and put it in a new directory where you want to run VisoMaster from. Then just execute the bat file to run VisoMaster. Portable dependencies will be installed on the first run to the `portable-files` directory.
 - [Download - Start_Portable.bat](Start_Portable.bat)
 
-You don't need any other steps from below for the portable version. Always start visomaster with Start_Portable.bat
+You don't need any other steps from below for the portable version. Always start VisoMaster with `Start_Portable.bat`.
+
+For the new browser-accessible mode you can use:
+- `Start_Portable.bat web`
+- `Start_Portable.bat web-network`
 
 ### **Non-Portable - Installation Steps**
 
 **1. Clone the Repository**
 Open a terminal or command prompt and run:
 ```sh
-git clone <URL_TO_YOUR_VISOMASTER_FUSION_REPO>
+git clone <URL_TO_THIS_REPOSITORY>
 ```
 ```sh
-cd VisoMaster
+cd VisoMaster-Experimental
 ```
 ```sh
 git checkout fusion
@@ -138,12 +151,57 @@ conda activate visomaster
 python main.py
 ```
 
+**5.2 Run the Browser Console**
+
+The project now ships with a first browser-facing control layer for jobs, presets and workspace state.
+
+```sh
+# Start the local web console
+python main_web.py
+```
+
+Or on Windows:
+- open `Start_Web.bat`
+
+Then open:
+
+```text
+http://127.0.0.1:8000
+```
+
+**5.3 Run the Browser Console over the Network**
+
+To make the browser console reachable from other devices in your LAN, bind it to all interfaces:
+
+```sh
+python main_web.py --host 0.0.0.0 --port 8000
+```
+
+Or on Windows:
+- open `Start_Web_Network.bat`
+
+Or in portable mode:
+- run `Start_Portable.bat web-network`
+
+Then open the printed LAN URL in a browser from another machine on the same network.
+You may need to allow Python through the Windows Firewall for inbound connections.
+
 
 **5.1 Update to latest code state**
 ```sh
-cd VisoMaster
+cd VisoMaster-Experimental
 git pull
 ```
+
+## Current Architecture
+
+This project is currently a local desktop application built around `PySide6`, OpenCV, Torch/ONNX/TensorRT, FFmpeg and optional virtual-camera streaming. It now also includes a separate browser-accessible control layer, but the full processing pipeline is still primarily desktop-driven.
+
+If you want to make it callable from a browser in the future, the recommended path is:
+- extract the processing pipeline into a UI-independent service layer
+- add a small API backend for jobs, presets, uploads and outputs
+- build a separate web frontend on top of that API
+- keep the current desktop UI as an optional client instead of making it the system core
 
 ---
 

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QMessageBox
 import threading
 import re
 
+from app.helpers.paths import ensure_project_dir
 from app.ui.widgets.actions import common_actions as common_widget_actions
 from app.ui.widgets.actions import card_actions
 from app.ui.widgets.actions import list_view_actions
@@ -25,8 +26,7 @@ if TYPE_CHECKING:
     from app.ui.main_ui import MainWindow
 
 
-jobs_dir = os.path.join(os.getcwd(), "jobs")
-os.makedirs(jobs_dir, exist_ok=True)  # Ensure the directory exists
+jobs_dir = str(ensure_project_dir("jobs"))
 
 # Add a global event for job loading
 job_loaded_event = threading.Event()
@@ -180,8 +180,6 @@ def load_job_workspace(main_window: "MainWindow", job_name: str):
     from app.ui.widgets import widget_components
 
     print("[DEBUG] Loading job workspace...")
-    jobs_dir = os.path.join(os.getcwd(), "jobs")
-    os.makedirs(jobs_dir, exist_ok=True)
     data_filename = os.path.join(jobs_dir, f"{job_name}.json")
     if not Path(data_filename).is_file():
         print(f"[DEBUG] No valid file found for job: {job_name}.")
@@ -475,8 +473,6 @@ def save_job_workspace(
     output_file_name: str = None,
 ):
     print("[DEBUG] Saving job workspace...")
-    jobs_dir = os.path.join(os.getcwd(), "jobs")
-    os.makedirs(jobs_dir, exist_ok=True)
     # Note: job_name here is actually the full path constructed in save_job
     # Let's keep data_filename consistent with that for clarity
     data_filename = (
@@ -844,7 +840,7 @@ class JobProcessor(QThread):
     def __init__(self, main_window: "MainWindow", jobs_to_process=None):
         super().__init__()
         self.main_window = main_window
-        self.jobs_dir = os.path.join(os.getcwd(), "jobs")
+        self.jobs_dir = jobs_dir
         self.completed_dir = os.path.join(self.jobs_dir, "completed")
         if jobs_to_process is not None:
             self.jobs = jobs_to_process

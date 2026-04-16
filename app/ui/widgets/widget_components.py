@@ -20,6 +20,7 @@ from app.ui.widgets.actions import graphics_view_actions
 from app.ui.widgets.actions import card_actions
 from app.ui.widgets.actions import list_view_actions
 from app.ui.widgets.actions import save_load_actions
+from app.helpers.paths import project_path
 import app.helpers.miscellaneous as misc_helpers
 
 if TYPE_CHECKING:
@@ -1267,7 +1268,9 @@ class LoadLastWorkspaceDialog(QtWidgets.QDialog):
 
     def load_workspace(self):
         self.accept()
-        save_load_actions.load_saved_workspace(self.main_window, "last_workspace.json")
+        save_load_actions.load_saved_workspace(
+            self.main_window, str(project_path("last_workspace.json"))
+        )
 
 
 class JobLoadingDialog(QtWidgets.QDialog):

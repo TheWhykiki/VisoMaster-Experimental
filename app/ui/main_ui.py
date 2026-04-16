@@ -37,6 +37,7 @@ from app.ui.widgets.swapper_layout_data import SWAPPER_LAYOUT_DATA
 from app.ui.widgets.settings_layout_data import SETTINGS_LAYOUT_DATA
 from app.ui.widgets.face_editor_layout_data import FACE_EDITOR_LAYOUT_DATA
 from app.helpers.miscellaneous import DFMModelManager, ParametersDict, ThumbnailManager
+from app.helpers.paths import project_path
 from app.helpers.typing_helper import (
     FacesParametersTypes,
     ParametersTypes,
@@ -712,20 +713,23 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         list_view_actions.clear_stop_loading_input_media(self)
         list_view_actions.clear_stop_loading_target_media(self)
 
-        save_load_actions.save_current_workspace(self, "last_workspace.json")
+        save_load_actions.save_current_workspace(
+            self, str(project_path("last_workspace.json"))
+        )
         # Optionally handle the event if needed
         event.accept()
 
     def load_last_workspace(self):
         # Show the load workspace dialog if the file exists
-        if Path("last_workspace.json").is_file():
+        last_workspace_path = project_path("last_workspace.json")
+        if last_workspace_path.is_file():
             auto_load_workspace_toggle = (
                 save_load_actions.get_auto_load_workspace_toggle(
-                    self, "last_workspace.json"
+                    self, str(last_workspace_path)
                 )
             )
             if auto_load_workspace_toggle:
-                save_load_actions.load_saved_workspace(self, "last_workspace.json")
+                save_load_actions.load_saved_workspace(self, str(last_workspace_path))
             else:
                 load_dialog = widget_components.LoadLastWorkspaceDialog(self)
                 load_dialog.exec_()

@@ -25,6 +25,7 @@ from app.ui.widgets.actions import video_control_actions
 from app.ui.widgets.actions import layout_actions
 from app.ui.widgets.actions import save_load_actions
 from app.ui.widgets.actions import list_view_actions
+from app.helpers.paths import ensure_project_dir
 import app.helpers.miscellaneous as misc_helpers
 import warnings
 
@@ -1103,8 +1104,7 @@ class VideoProcessor(QObject):
             # Default-style: create a unique temp file
             date_and_time = datetime.now().strftime(r"%Y_%m_%d_%H_%M_%S")
             try:
-                base_temp_dir = os.path.join(os.getcwd(), "temp_files", "default")
-                os.makedirs(base_temp_dir, exist_ok=True)
+                base_temp_dir = str(ensure_project_dir("temp_files", "default"))
                 self.temp_file = os.path.join(
                     base_temp_dir, f"temp_output_{date_and_time}.mp4"
                 )
@@ -1624,8 +1624,7 @@ class VideoProcessor(QObject):
 
         # 4. Create Temp Directory
         try:
-            base_temp_dir = os.path.join(os.getcwd(), "temp_files", "segments")
-            os.makedirs(base_temp_dir, exist_ok=True)
+            base_temp_dir = str(ensure_project_dir("temp_files", "segments"))
             unique_id = uuid.uuid4()
             self.segment_temp_dir = os.path.join(base_temp_dir, f"run_{unique_id}")
             os.makedirs(self.segment_temp_dir, exist_ok=True)

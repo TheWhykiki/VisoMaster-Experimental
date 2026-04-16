@@ -19,6 +19,7 @@ from app.ui.widgets.actions import layout_actions
 from app.ui.widgets.actions import filter_actions
 from app.ui.widgets import ui_workers
 from app.helpers.typing_helper import ParametersTypes, MarkerTypes
+from app.helpers.paths import ensure_project_dir
 import app.helpers.miscellaneous as misc_helpers
 
 if TYPE_CHECKING:
@@ -755,8 +756,7 @@ def save_current_job(main_window: "MainWindow"):
         }
 
     # Define save path
-    jobs_dir = os.path.join(os.getcwd(), ".jobs")
-    os.makedirs(jobs_dir, exist_ok=True)
+    jobs_dir = str(ensure_project_dir(".jobs"))
     save_path = os.path.join(jobs_dir, f"{job_name}.json")
 
     # Save the job file

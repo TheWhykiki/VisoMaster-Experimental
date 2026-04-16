@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VisoMaster Web Console</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Browser Console</p>
+          <h1>VisoMaster Web Console</h1>
+          <p class="hero-copy">
+            Headless access to jobs, presets and workspace state. This is the
+            first browser-facing layer for the project, ready to be extended
+            into a full processing backend.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="refreshAllButton" class="primary">Refresh</button>
+          <a class="ghost" href="/api/status" target="_blank" rel="noreferrer">API Status</a>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel status-panel">
+          <div class="panel-header">
+            <h2>System Status</h2>
+            <span id="statusBadge" class="badge">Loading</span>
+          </div>
+          <div id="statusCards" class="status-cards"></div>
+        </section>
+
+        <section class="panel collection-panel">
+          <div class="panel-header">
+            <h2>Project Data</h2>
+            <span class="panel-note">Select an item to inspect or edit its JSON.</span>
+          </div>
+
+          <div class="collection-grid">
+            <article class="collection-card">
+              <div class="collection-title-row">
+                <h3>Jobs</h3>
+                <button data-refresh="jobs" class="mini">Reload</button>
+              </div>
+              <ul id="jobsList" class="item-list"></ul>
+            </article>
+
+            <article class="collection-card">
+              <div class="collection-title-row">
+                <h3>Job Exports</h3>
+                <button data-refresh="job-exports" class="mini">Reload</button>
+              </div>
+              <ul id="jobExportsList" class="item-list"></ul>
+            </article>
+
+            <article class="collection-card">
+              <div class="collection-title-row">
+                <h3>Presets</h3>
+                <button data-refresh="presets" class="mini">Reload</button>
+              </div>
+              <ul id="presetsList" class="item-list"></ul>
+            </article>
+
+            <article class="collection-card">
+              <div class="collection-title-row">
+                <h3>Last Workspace</h3>
+                <button id="loadWorkspaceButton" class="mini">Open</button>
+              </div>
+              <div id="workspaceSummary" class="workspace-summary"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel editor-panel">
+          <div class="panel-header">
+            <div>
+              <h2 id="editorTitle">JSON Editor</h2>
+              <p id="editorSubtitle" class="panel-note">
+                Select a job, preset, job export or the last workspace.
+              </p>
+            </div>
+            <div class="editor-actions">
+              <button id="saveButton" class="primary" disabled>Save</button>
+              <button id="deleteButton" class="danger" disabled>Delete</button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>Name</span>
+            <input id="nameInput" type="text" placeholder="item name" />
+          </label>
+
+          <label class="field">
+            <span>Payload</span>
+            <textarea id="jsonEditor" spellcheck="false"></textarea>
+          </label>
+
+          <div id="flashMessage" class="flash" hidden></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

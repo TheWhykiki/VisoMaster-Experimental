@@ -3,12 +3,14 @@ from PySide6 import QtWidgets
 import sys
 
 import qdarktheme
+from app.helpers.paths import project_path
 from app.ui.core.proxy_style import ProxyStyle
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle(ProxyStyle())
-    with open("app/ui/styles/true_dark_styles.qss", "r") as f:
+    stylesheet_path = project_path("app", "ui", "styles", "true_dark_styles.qss")
+    with stylesheet_path.open("r") as f:
         _style = f.read()
         _style = (
             qdarktheme.load_stylesheet(

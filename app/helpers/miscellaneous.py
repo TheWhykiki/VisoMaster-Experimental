@@ -11,6 +11,8 @@ from pathlib import Path
 from torchvision.transforms import v2
 import threading
 
+from app.helpers.paths import resolve_project_path
+
 lock = threading.Lock()
 
 # --- Global Scope ---
@@ -68,7 +70,7 @@ class ThumbnailManager:
             thumbnail_dir (str): The name of the directory to store thumbnails,
                                  created in the current working directory.
         """
-        self.thumbnail_dir = os.path.join(os.getcwd(), thumbnail_dir)
+        self.thumbnail_dir = str(resolve_project_path(thumbnail_dir))
         self._ensure_directory()
 
     def _ensure_directory(self) -> None:
@@ -185,7 +187,7 @@ class DFMModelManager:
         Args:
             models_path (str): The path to the directory containing DFM model files.
         """
-        self.models_path = models_path
+        self.models_path = str(resolve_project_path(models_path))
         self.models_data = {}
         self.refresh_models()
 

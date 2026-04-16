@@ -1,6 +1,6 @@
 @echo off
 call scripts\setenv.bat
-"%GIT_EXECUTABLE%" fetch origin main
-"%GIT_EXECUTABLE%" reset --hard origin/main
-"%PYTHON_EXECUTABLE%" -m pip install -r requirements_cu118.txt --default-timeout 100
+echo INFO: Legacy updater name detected. This repository now maintains requirements_cu129.txt.
+"%GIT_EXECUTABLE%" pull --ff-only
+"%PYTHON_EXECUTABLE%" -m pip install -r requirements_cu129.txt --default-timeout 100
 "%PYTHON_EXECUTABLE%" download_models.py

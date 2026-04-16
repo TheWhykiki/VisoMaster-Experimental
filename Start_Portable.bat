@@ -3,7 +3,7 @@ setlocal EnableDelayedExpansion
 
 :: --- Basic Setup ---
 :: Define repo details
-set "REPO_URL=https://github.com/Glat0s/VisoMaster.git"
+set "REPO_URL=https://github.com/TheWhykiki/VisoMaster-Experimental.git"
 set "BRANCH=fusion"
 
 :: Extract repo name from URL
@@ -36,6 +36,14 @@ set "PATH=%GIT_DIR%\bin;%PATH%"
 set "CONFIG_FILE=%BASE_DIR%portable.cfg"
 set "DOWNLOAD_PY=download_models.py"
 set "MAIN_PY=main.py"
+set "MAIN_ARGS="
+if /I "%~1"=="web" (
+    set "MAIN_PY=main_web.py"
+)
+if /I "%~1"=="web-network" (
+    set "MAIN_PY=main_web.py"
+    set "MAIN_ARGS=--host 0.0.0.0 --port 8000"
+)
 
 :: --- Step 0: User Configuration ---
 :: Read config or prompt user for the first time
@@ -272,12 +280,12 @@ set "PATH=%OLD_PATH%"
 :: --- Step 8: Run main application ---
 if exist "%APP_DIR%\%MAIN_PY%" (
     echo.
-    echo Starting main.py...
+    echo Starting %MAIN_PY%...
     echo ========================================
     pushd "%APP_DIR%"
     set "FFMPEG_PATH=%FFMPEG_PATH_VAR%"
     set "PATH=%FFMPEG_PATH_VAR%;%PATH%"
-    "%VENV_DIR%\Scripts\python.exe" "%MAIN_PY%"
+    "%VENV_DIR%\Scripts\python.exe" "%MAIN_PY%" %MAIN_ARGS%
     popd
 ) else (
     echo ERROR: main.py not found in "%APP_DIR%".

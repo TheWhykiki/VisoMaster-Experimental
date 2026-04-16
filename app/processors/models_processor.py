@@ -49,6 +49,7 @@ from app.processors.models_data import (
     models_trt_list,
 )
 from app.helpers.miscellaneous import is_file_exists
+from app.helpers.paths import ensure_project_dir
 from app.helpers.downloader import download_file
 from app.processors.utils.ref_ldm_kv_embedding import KVExtractor
 
@@ -208,6 +209,7 @@ class ModelsProcessor(QtCore.QObject):
 
     def __init__(self, main_window: "MainWindow", device="cuda"):
         super().__init__()
+        tensorrt_cache_dir = str(ensure_project_dir("tensorrt-engines"))
         self.main_window = main_window
         self.K = K  # Assign the module-level K to an instance attribute
         self.provider_name = "TensorRT"
@@ -221,11 +223,11 @@ class ModelsProcessor(QtCore.QObject):
         self.trt_ep_options = {
             # 'trt_max_workspace_size': 3 << 30,  # Dimensione massima dello spazio di lavoro in bytes
             "trt_engine_cache_enable": True,
-            "trt_engine_cache_path": "tensorrt-engines",
+            "trt_engine_cache_path": tensorrt_cache_dir,
             "trt_timing_cache_enable": True,
-            "trt_timing_cache_path": "tensorrt-engines",
+            "trt_timing_cache_path": tensorrt_cache_dir,
             "trt_dump_ep_context_model": True,
-            "trt_ep_context_file_path": "tensorrt-engines",
+            "trt_ep_context_file_path": tensorrt_cache_dir,
             "trt_layer_norm_fp32_fallback": True,
             "trt_builder_optimization_level": 5,
         }
