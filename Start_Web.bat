@@ -1,11 +1,28 @@
 @echo off
 setlocal EnableDelayedExpansion
+cd /d "%~dp0"
+
+set "EXIT_CODE=0"
+set "CONDA_BAT="
 
 IF EXIST ".venv\Scripts\python.exe" (
     echo Starting VisoMaster Web Console on 127.0.0.1:8000...
     ".venv\Scripts\python.exe" main_web.py
     set "EXIT_CODE=!ERRORLEVEL!"
 ) ELSE (
+    call :FindCondaBat
+    IF DEFINED CONDA_BAT (
+        echo .venv not found, trying conda environment "visomaster"...
+        call "%CONDA_BAT%" activate visomaster
+        IF NOT ERRORLEVEL 1 (
+            echo Starting VisoMaster Web Console on 127.0.0.1:8000...
+            python main_web.py
+            set "EXIT_CODE=!ERRORLEVEL!"
+            goto :AfterRun
+        )
+        echo WARNING: Conda was found, but the environment "visomaster" could not be activated.
+    )
+
     py -3 --version >nul 2>&1
     IF NOT ERRORLEVEL 1 (
         echo .venv not found, starting with Windows Python launcher...
@@ -22,24 +39,11 @@ IF EXIST ".venv\Scripts\python.exe" (
         goto :AfterRun
     )
 
-    where conda >nul 2>&1
-    IF ERRORLEVEL 1 (
-        echo ERROR: .venv, py and python were not found, and conda is not available either.
-        echo Install Python 3 and try again, or use Start_Portable.bat web.
-        goto :HandleError
-    )
-
-    echo .venv not found, trying conda environment "visomaster"...
-    call conda activate visomaster
-    IF ERRORLEVEL 1 (
-        echo ERROR: Could not activate the conda environment "visomaster".
-        echo Install Python 3, create a .venv, or use Start_Portable.bat web.
-        goto :HandleError
-    )
-    echo Starting VisoMaster Web Console on 127.0.0.1:8000...
-    python main_web.py
-    set "EXIT_CODE=!ERRORLEVEL!"
-) 
+    echo ERROR: No usable Python runtime was found for the web console.
+    echo Install Python 3, create a .venv, or use Start_Portable.bat web.
+    set "EXIT_CODE=1"
+    goto :HandleError
+)
 
 :AfterRun
 IF NOT "!EXIT_CODE!"=="0" goto :HandleError
@@ -47,10 +51,29 @@ endlocal
 exit /b 0
 
 :HandleError
-if not defined EXIT_CODE set "EXIT_CODE=1"
 echo.
 echo VisoMaster Web Console failed to start or exited with error code !EXIT_CODE!.
 echo The console will stay open so you can read the error message above.
 pause
 endlocal
 exit /b %EXIT_CODE%
+
+:FindCondaBat
+for %%I in (
+    "%USERPROFILE%\miniconda3\condabin\conda.bat"
+    "%USERPROFILE%\anaconda3\condabin\conda.bat"
+    "%ProgramData%\miniconda3\condabin\conda.bat"
+    "%ProgramData%\anaconda3\condabin\conda.bat"
+    "%ProgramFiles%\Miniconda3\condabin\conda.bat"
+    "%ProgramFiles%\Anaconda3\condabin\conda.bat"
+) do (
+    if exist %%~I (
+        set "CONDA_BAT=%%~I"
+        goto :eof
+    )
+)
+for /f "delims=" %%I in ('where conda.bat 2^>nul') do (
+    set "CONDA_BAT=%%~I"
+    goto :eof
+)
+goto :eof
