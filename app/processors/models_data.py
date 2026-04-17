@@ -9,10 +9,23 @@ os.makedirs(refldm_ckpts_path, exist_ok=True)
 canonswap_model_path = "model_assets/canonswap"
 os.makedirs(canonswap_model_path, exist_ok=True)
 
+# ensure flux model paths exist
+flux_models_path = "model_assets/flux_models"
+os.makedirs(flux_models_path, exist_ok=True)
+
+flux_loras_path = "model_assets/flux_loras"
+os.makedirs(flux_loras_path, exist_ok=True)
+
 models_dir = str(
     Path(__file__).resolve().parent.parent.parent / "model_assets"
 )  # More robust path
 assets_repo = "https://github.com/visomaster/visomaster-assets/releases/download"
+
+FLUX_SWAPPER_MODEL_NAME = "ACE++ (FLUX)"
+FLUX_FILL_AUTO_OPTION = "Auto Download: FLUX.1 Fill [dev]"
+ACE_PORTRAIT_AUTO_OPTION = "Auto Download: ACE++ Portrait LoRA"
+ACE_SUBJECT_AUTO_OPTION = "Auto Download: ACE++ Subject LoRA"
+ACE_LOCAL_AUTO_OPTION = "Auto Download: ACE++ Local Editing LoRA"
 
 try:
     import tensorrt as trt
@@ -76,6 +89,7 @@ arcface_mapping_model_dict = {
     "GhostFace-v3": "GhostArcFace",
     "CSCS": "CSCSArcFace",
     "CanonSwap": "CanonSwapArcFace",
+    FLUX_SWAPPER_MODEL_NAME: "Inswapper128ArcFace",
 }
 
 detection_model_mapping = {

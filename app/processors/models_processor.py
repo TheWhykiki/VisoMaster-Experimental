@@ -565,6 +565,7 @@ class ModelsProcessor(QtCore.QObject):
         for model_name, model_instance in self.models.items():
             del model_instance
             self.models[model_name] = None
+        self.face_swappers.unload_flux_ace_plus()
         self.clip_session = []
         gc.collect()
 
@@ -641,6 +642,7 @@ class ModelsProcessor(QtCore.QObject):
         self.providers = providers
         self.provider_name = provider_name
         self.lp_mask_crop = self.lp_mask_crop.to(self.device)
+        self.face_swappers.unload_flux_ace_plus()
 
         return self.provider_name
 
@@ -669,6 +671,7 @@ class ModelsProcessor(QtCore.QObject):
         self.delete_models()
         self.delete_models_dfm()
         self.delete_models_trt()
+        self.face_swappers.unload_flux_ace_plus()
         torch.cuda.empty_cache()
 
     def ensure_kv_extractor_loaded(self):
@@ -931,6 +934,13 @@ class ModelsProcessor(QtCore.QObject):
     def run_swapper_canonswap(self, image, embedding, output):
         return self.face_swappers.run_canonswap(image, embedding, output)
 
+    def run_swapper_flux_ace_plus(
+        self, target_face_rgb, source_face_rgb, inpaint_mask, parameters
+    ):
+        return self.face_swappers.run_swapper_flux_ace_plus(
+            target_face_rgb, source_face_rgb, inpaint_mask, parameters
+        )
+
     def run_enhance_frame_tile_process(
         self, img, enhancer_type, tile_size=256, scale=1
     ):
@@ -1057,6 +1067,16 @@ class ModelsProcessor(QtCore.QObject):
     ):
         return self.face_masks.process_masks_and_masks(
             swap_restorecalc, original_face_512, parameters, control
+        )
+
+    def build_full_face_mask(
+        self, img_uint8_3x512x512, expand=6, blur=8, include_hair=False
+    ):
+        return self.face_masks.build_full_face_mask(
+            img_uint8_3x512x512,
+            expand=expand,
+            blur=blur,
+            include_hair=include_hair,
         )
 
     def apply_face_makeup(self, img, parameters):

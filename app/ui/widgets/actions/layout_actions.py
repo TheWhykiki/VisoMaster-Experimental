@@ -118,17 +118,19 @@ def add_widgets_to_tab_layout(
                 )
 
             elif "Selection" in widget_name:
-                # --- MODIFICATION START ---
-                # Check if options or default are functions (lambdas)
                 options = widget_data["options"]
                 default = widget_data["default"]
+                manager_name = widget_data.get("optionsManager")
+                manager = (
+                    getattr(main_window, manager_name, None)
+                    if manager_name
+                    else main_window.dfm_model_manager
+                )
 
-                # For DFM models, we now pass the manager to the lambda
                 if callable(options):
-                    options = options(main_window.dfm_model_manager)
+                    options = options(manager)
                 if callable(default):
-                    default = default(main_window.dfm_model_manager)
-                # --- MODIFICATION END ---
+                    default = default(manager)
 
                 widget = widget_components.SelectionBox(
                     label=widget_data["label"],

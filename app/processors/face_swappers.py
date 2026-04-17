@@ -8,6 +8,7 @@ from numpy.linalg import norm as l2norm
 from typing import TYPE_CHECKING
 import torch.nn.functional as F
 from torch import Tensor
+from app.processors.utils.flux_ace_plus import FluxAcePlusSwapper
 
 if TYPE_CHECKING:
     from app.processors.models_processor import ModelsProcessor
@@ -35,6 +36,7 @@ class FaceSwappers:
         self.resize_112 = v2.Resize(
             (112, 112), interpolation=v2.InterpolationMode.BILINEAR, antialias=False
         )
+        self.flux_ace_plus_swapper = FluxAcePlusSwapper(models_processor)
 
     def run_recognize_direct(
         self, img, kps, similarity_type="Opal", arcface_model="Inswapper128ArcFace"
@@ -503,6 +505,23 @@ class FaceSwappers:
         n_e = source_embedding / np.linalg.norm(source_embedding)
         latent = n_e.reshape((1, -1))
         return latent
+
+    def unload_flux_ace_plus(self):
+        self.flux_ace_plus_swapper.unload()
+
+    def run_swapper_flux_ace_plus(
+        self,
+        target_face_rgb: np.ndarray,
+        source_face_rgb: np.ndarray | None,
+        inpaint_mask: np.ndarray,
+        parameters: dict,
+    ) -> torch.Tensor | None:
+        return self.flux_ace_plus_swapper.run_safe(
+            target_face_rgb=target_face_rgb,
+            source_face_rgb=source_face_rgb,
+            inpaint_mask=inpaint_mask,
+            parameters=parameters,
+        )
 
     def _canonswap_create_deformed_feature(
         self, feature: Tensor, sparse_motions: Tensor

@@ -13,22 +13,112 @@
           <p class="eyebrow">Browser-Konsole</p>
           <h1>VisoMaster Web-Konsole</h1>
           <p class="hero-copy">
-            Headless-Zugriff auf Jobs, Presets und den Arbeitsbereichsstatus.
-            Das ist die erste browserfähige Ebene des Projekts und kann
-            schrittweise zu einem vollständigen Verarbeitungs-Backend ausgebaut
-            werden.
+            Headless-Zugriff auf Jobs, Presets, Embeddings und den
+            Arbeitsbereichsstatus. Das ist die erste browserfähige Ebene des
+            Projekts und kann schrittweise zu einem vollständigen
+            Verarbeitungs-Backend ausgebaut werden.
           </p>
         </div>
         <div class="hero-actions">
           <button id="refreshAllButton" class="primary">Aktualisieren</button>
+          <button id="openHelpButton" class="ghost" type="button">Schnellhilfe</button>
           <a class="ghost" href="/api/status" target="_blank" rel="noreferrer">API-Status</a>
         </div>
       </header>
 
       <main class="layout">
+        <section id="helpPanel" class="panel help-panel">
+          <div class="panel-header">
+            <div>
+              <div class="section-title-row">
+                <h2>Dokumentation & Hilfe</h2>
+                <button
+                  class="help-trigger"
+                  type="button"
+                  data-help-topic="overview"
+                  data-tooltip="Oeffnet die Einstiegshilfe fuer die Web-Konsole."
+                  aria-label="Hilfe zur Web-Konsole anzeigen"
+                >
+                  ?
+                </button>
+              </div>
+              <p class="panel-note">
+                Fuehre die Maus ueber die Fragezeichen oder klicke darauf, um direkt zur passenden
+                Erlaeuterung zu springen.
+              </p>
+            </div>
+            <div class="editor-actions">
+              <button id="helpOverviewButton" class="ghost" type="button">Uebersicht</button>
+              <button id="helpToggleButton" class="mini" type="button" aria-expanded="true">
+                Hilfe minimieren
+              </button>
+            </div>
+          </div>
+
+          <div id="helpPanelBody" class="help-panel-body">
+            <div class="help-quick-grid">
+              <button class="help-card" type="button" data-help-topic="overview">
+                <strong>Schnellstart</strong>
+                <span>Finde die wichtigsten Bereiche und typische Einstiege in 3 Schritten.</span>
+              </button>
+              <button class="help-card" type="button" data-help-topic="status">
+                <strong>Systemstatus</strong>
+                <span>Verstehe, ob die Web-Konsole startklar ist und welche Daten verfuegbar sind.</span>
+              </button>
+              <button class="help-card" type="button" data-help-topic="jobs">
+                <strong>Jobs & Exporte</strong>
+                <span>Nutze gespeicherte Job-Dateien, pruefe Exporte und oeffne Eintraege im Editor.</span>
+              </button>
+              <button class="help-card" type="button" data-help-topic="presets">
+                <strong>Presets</strong>
+                <span>Verwalte Parameter- und Control-JSON gemeinsam als wiederverwendbares Preset.</span>
+              </button>
+              <button class="help-card" type="button" data-help-topic="workspace">
+                <strong>Arbeitsbereich</strong>
+                <span>Bearbeite den zuletzt gespeicherten Projektzustand ohne viele Zwischenschritte.</span>
+              </button>
+              <button class="help-card" type="button" data-help-topic="builder">
+                <strong>Embedding-Builder</strong>
+                <span>Lege Modellvektoren an, pruefe die Vorschau und speichere kompatible Embeddings.</span>
+              </button>
+            </div>
+
+            <article class="help-article">
+              <p id="helpTopicEyebrow" class="eyebrow help-eyebrow">Schnellstart</p>
+              <h3 id="helpTopicTitle">So findest du dich schnell zurecht</h3>
+              <p id="helpTopicSummary" class="help-summary"></p>
+
+              <div class="help-columns">
+                <section class="help-column">
+                  <h4>In wenigen Klicks</h4>
+                  <ol id="helpTopicSteps" class="help-list ordered"></ol>
+                </section>
+
+                <section class="help-column">
+                  <h4>Darauf achten</h4>
+                  <ul id="helpTopicNotes" class="help-list"></ul>
+                </section>
+              </div>
+
+              <p id="helpTopicContext" class="panel-note help-context"></p>
+            </article>
+          </div>
+        </section>
+
         <section class="panel status-panel">
           <div class="panel-header">
-            <h2>Systemstatus</h2>
+            <div class="section-title-row">
+              <h2>Systemstatus</h2>
+              <button
+                class="help-trigger"
+                type="button"
+                data-help-topic="status"
+                data-tooltip="Erklaert Laufzeit, erkannte Tools und Datenzaehler."
+                aria-label="Hilfe zum Systemstatus anzeigen"
+              >
+                ?
+              </button>
+            </div>
             <span id="statusBadge" class="badge">Lädt</span>
           </div>
           <div id="statusCards" class="status-cards"></div>
@@ -36,14 +126,38 @@
 
         <section class="panel collection-panel">
           <div class="panel-header">
-            <h2>Projektdaten</h2>
-            <span class="panel-note">Eintrag auswählen, um sein JSON zu prüfen oder zu bearbeiten.</span>
+            <div>
+              <div class="section-title-row">
+                <h2>Projektdaten</h2>
+                <button
+                  class="help-trigger"
+                  type="button"
+                  data-help-topic="collections"
+                  data-tooltip="Zeigt, wie Jobs, Presets, Embeddings und Workspace zusammenhaengen."
+                  aria-label="Hilfe zu den Projektdaten anzeigen"
+                >
+                  ?
+                </button>
+              </div>
+              <span class="panel-note">Eintrag auswaehlen, um sein JSON zu pruefen oder zu bearbeiten.</span>
+            </div>
           </div>
 
           <div class="collection-grid">
             <article class="collection-card">
               <div class="collection-title-row">
-                <h3>Jobs</h3>
+                <div class="section-title-row">
+                  <h3>Jobs</h3>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="jobs"
+                    data-tooltip="Jobs sind Arbeitsauftraege fuer die Desktop-Verarbeitung."
+                    aria-label="Hilfe zu Jobs anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
                 <button data-refresh="jobs" class="mini">Neu laden</button>
               </div>
               <ul id="jobsList" class="item-list"></ul>
@@ -51,7 +165,18 @@
 
             <article class="collection-card">
               <div class="collection-title-row">
-                <h3>Job-Exporte</h3>
+                <div class="section-title-row">
+                  <h3>Job-Exporte</h3>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="job-exports"
+                    data-tooltip="Erklaert portable Exportdateien fuer Jobs."
+                    aria-label="Hilfe zu Job-Exporten anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
                 <button data-refresh="job-exports" class="mini">Neu laden</button>
               </div>
               <ul id="jobExportsList" class="item-list"></ul>
@@ -59,7 +184,18 @@
 
             <article class="collection-card">
               <div class="collection-title-row">
-                <h3>Presets</h3>
+                <div class="section-title-row">
+                  <h3>Presets</h3>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="presets"
+                    data-tooltip="Presets speichern Parameter- und Steuerungswerte gemeinsam."
+                    aria-label="Hilfe zu Presets anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
                 <button data-refresh="presets" class="mini">Neu laden</button>
               </div>
               <ul id="presetsList" class="item-list"></ul>
@@ -67,7 +203,37 @@
 
             <article class="collection-card">
               <div class="collection-title-row">
-                <h3>Letzter Arbeitsbereich</h3>
+                <div class="section-title-row">
+                  <h3>Embeddings</h3>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="embeddings"
+                    data-tooltip="Erklaert Embedding-Dateien und deren Modelle."
+                    aria-label="Hilfe zu Embeddings anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
+                <button data-refresh="embeddings" class="mini">Neu laden</button>
+              </div>
+              <ul id="embeddingsList" class="item-list"></ul>
+            </article>
+
+            <article class="collection-card">
+              <div class="collection-title-row">
+                <div class="section-title-row">
+                  <h3>Letzter Arbeitsbereich</h3>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="workspace"
+                    data-tooltip="Zeigt, was im letzten Arbeitsbereich gespeichert wird."
+                    aria-label="Hilfe zum letzten Arbeitsbereich anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
                 <button id="loadWorkspaceButton" class="mini">Öffnen</button>
               </div>
               <div id="workspaceSummary" class="workspace-summary"></div>
@@ -78,9 +244,20 @@
         <section class="panel editor-panel">
           <div class="panel-header">
             <div>
-              <h2 id="editorTitle">JSON-Editor</h2>
+              <div class="section-title-row">
+                <h2 id="editorTitle">JSON-Editor</h2>
+                <button
+                  class="help-trigger"
+                  type="button"
+                  data-help-topic="editor"
+                  data-tooltip="Erklaert Speichern, Loeschen und den JSON-Aufbau."
+                  aria-label="Hilfe zum JSON-Editor anzeigen"
+                >
+                  ?
+                </button>
+              </div>
               <p id="editorSubtitle" class="panel-note">
-                Wähle einen Job, ein Preset, einen Job-Export oder den letzten Arbeitsbereich aus.
+                Wähle einen Job, ein Preset, ein Embedding, einen Job-Export oder den letzten Arbeitsbereich aus.
               </p>
             </div>
             <div class="editor-actions">
@@ -100,6 +277,83 @@
           </label>
 
           <div id="flashMessage" class="flash" hidden></div>
+        </section>
+
+        <section class="panel embedding-builder-panel">
+          <div class="panel-header">
+            <div>
+              <div class="section-title-row">
+                <h2>Embedding-Builder</h2>
+                <button
+                  class="help-trigger"
+                  type="button"
+                  data-help-topic="builder"
+                  data-tooltip="Fuehrt durch Dateiname, Modellvektoren und Speichern."
+                  aria-label="Hilfe zum Embedding-Builder anzeigen"
+                >
+                  ?
+                </button>
+              </div>
+              <p class="panel-note">
+                Zahlenwerte einfuegen, Modell hinterlegen und als kompatible
+                Embedding-Datei speichern.
+              </p>
+            </div>
+            <div class="editor-actions">
+              <button id="builderResetButton" class="ghost" type="button">Zurücksetzen</button>
+              <button id="builderSaveButton" class="primary" type="button">Embedding speichern</button>
+            </div>
+          </div>
+
+          <div class="builder-grid">
+            <label class="field">
+              <span>Dateiname</span>
+              <input id="builderFileName" type="text" placeholder="z. B. mein_embedding" />
+            </label>
+
+            <label class="field">
+              <span>Embedding-Name</span>
+              <input id="builderEmbeddingName" type="text" placeholder="Anzeigename im Tool" />
+            </label>
+
+            <label class="field">
+              <span>Modellname</span>
+              <input id="builderModelName" type="text" placeholder="z. B. Inswapper128ArcFace" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Vektorwerte</span>
+            <textarea
+              id="builderVectorInput"
+              class="builder-textarea"
+              spellcheck="false"
+              placeholder="Zahlen als JSON-Array, komma- oder zeilengetrennt einfuegen"
+            ></textarea>
+          </label>
+
+          <div class="builder-toolbar">
+            <p class="panel-note">
+              Mit "Modell hinzufügen" kannst du mehrere Modellvektoren zu einem
+              Embedding zusammenstellen.
+            </p>
+            <button id="builderAddModelButton" class="mini" type="button">Modell hinzufügen</button>
+          </div>
+
+          <div class="builder-preview-grid">
+            <article class="builder-card">
+              <div class="collection-title-row">
+                <h3>Aktuelle Modelle</h3>
+                <span id="builderStats" class="item-meta">Noch kein Modell hinzugefügt.</span>
+              </div>
+              <ul id="builderModelList" class="item-list compact-list"></ul>
+            </article>
+
+            <label class="field builder-card">
+              <span>JSON-Vorschau</span>
+              <textarea id="builderPreview" class="builder-preview" spellcheck="false" readonly></textarea>
+            </label>
+          </div>
         </section>
       </main>
     </div>

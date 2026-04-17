@@ -12,6 +12,12 @@ from torchvision.transforms import v2
 import threading
 
 from app.helpers.paths import resolve_project_path
+from app.processors.models_data import (
+    ACE_LOCAL_AUTO_OPTION,
+    ACE_PORTRAIT_AUTO_OPTION,
+    ACE_SUBJECT_AUTO_OPTION,
+    FLUX_FILL_AUTO_OPTION,
+)
 
 lock = threading.Lock()
 
@@ -216,6 +222,110 @@ class DFMModelManager:
         """Returns the filename of the first model found, or an empty string."""
         dfm_values = self.get_selection_values()
         return dfm_values[0] if dfm_values else ""
+
+
+class LocalModelManager:
+    """
+    Generic manager for discovering local model files or diffusers-style folders.
+
+    This is used for optional backends such as FLUX where users are expected to
+    provide checkpoints or LoRAs locally instead of downloading them through the
+    application.
+    """
+
+    def __init__(
+        self,
+        models_path: str,
+        *,
+        file_extensions: tuple[str, ...] = (),
+        allow_directories: bool = False,
+        required_directory_files: tuple[str, ...] = (),
+        none_label: str | None = None,
+    ):
+        self.models_path = str(resolve_project_path(models_path))
+        self.file_extensions = tuple(ext.lower() for ext in file_extensions)
+        self.allow_directories = allow_directories
+        self.required_directory_files = required_directory_files
+        self.none_label = none_label
+        self.models_data: dict[str, str] = {}
+        self.refresh_models()
+
+    def _is_valid_directory(self, path: Path) -> bool:
+        if not path.is_dir():
+            return False
+        if not self.required_directory_files:
+            return True
+        return any((path / required).exists() for required in self.required_directory_files)
+
+    def _is_valid_file(self, path: Path) -> bool:
+        return path.is_file() and path.suffix.lower() in self.file_extensions
+
+    def refresh_models(self) -> None:
+        self.models_data.clear()
+        base_path = Path(self.models_path)
+        base_path.mkdir(parents=True, exist_ok=True)
+
+        for item in sorted(base_path.iterdir(), key=lambda entry: entry.name.lower()):
+            if self.allow_directories and self._is_valid_directory(item):
+                self.models_data[item.name] = str(item)
+            elif self._is_valid_file(item):
+                self.models_data[item.name] = str(item)
+
+    def get_models_data(self) -> dict[str, str]:
+        return self.models_data
+
+    def get_selection_values(self) -> list[str]:
+        values = list(self.models_data.keys())
+        if values:
+            return values
+        return [self.none_label] if self.none_label else []
+
+    def get_default_value(self) -> str:
+        values = self.get_selection_values()
+        return values[0] if values else ""
+
+    def get_model_path(self, model_name: str) -> str:
+        return self.models_data.get(model_name, "")
+
+
+class FluxModelManager(LocalModelManager):
+    def __init__(self, models_path: str = "./model_assets/flux_models"):
+        super().__init__(
+            models_path,
+            file_extensions=(".safetensors", ".ckpt", ".bin"),
+            allow_directories=True,
+            required_directory_files=("model_index.json", "transformer"),
+            none_label="<no local FLUX model found>",
+        )
+
+    def get_selection_values(self) -> list[str]:
+        self.refresh_models()
+        return [FLUX_FILL_AUTO_OPTION, *list(self.models_data.keys())]
+
+    def get_default_value(self) -> str:
+        return FLUX_FILL_AUTO_OPTION
+
+
+class FluxLoraManager(LocalModelManager):
+    def __init__(self, models_path: str = "./model_assets/flux_loras"):
+        super().__init__(
+            models_path,
+            file_extensions=(".safetensors", ".ckpt", ".bin", ".pt"),
+            allow_directories=False,
+            none_label="<no local FLUX LoRA found>",
+        )
+
+    def get_selection_values(self) -> list[str]:
+        self.refresh_models()
+        return [
+            ACE_PORTRAIT_AUTO_OPTION,
+            ACE_SUBJECT_AUTO_OPTION,
+            ACE_LOCAL_AUTO_OPTION,
+            *list(self.models_data.keys()),
+        ]
+
+    def get_default_value(self) -> str:
+        return ACE_PORTRAIT_AUTO_OPTION
 
 
 # Datatype used for storing parameter values

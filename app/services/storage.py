@@ -25,6 +25,10 @@ def presets_dir() -> Path:
     return ensure_project_dir("presets")
 
 
+def embeddings_dir() -> Path:
+    return ensure_project_dir("embeddings")
+
+
 def last_workspace_path() -> Path:
     return project_path("last_workspace.json")
 
@@ -40,12 +44,12 @@ def validate_item_name(name: str) -> str:
     return cleaned
 
 
-def _read_json_file(path: Path) -> dict[str, Any]:
+def _read_json_file(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def _write_json_file(path: Path, payload: dict[str, Any]) -> None:
+def _write_json_file(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(path.suffix + ".tmp")
     with temp_path.open("w", encoding="utf-8") as handle:
@@ -69,6 +73,38 @@ def _json_summary(path: Path, name: str, payload: dict[str, Any]) -> dict[str, A
         "targetFaceCount": len(payload.get("target_faces_data", {})),
         "embeddingCount": len(payload.get("embeddings_data", {})),
         "markerCount": len(payload.get("markers", {})),
+    }
+
+
+def _embedding_summary(path: Path, name: str, payload: Any) -> dict[str, Any]:
+    stat = path.stat()
+    if not isinstance(payload, list):
+        raise ValueError("Embedding-Datei muss eine JSON-Liste sein.")
+
+    entry_count = 0
+    model_count = 0
+    dimensions: list[int] = []
+
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        entry_count += 1
+        embedding_store = item.get("embedding_store", {})
+        if not isinstance(embedding_store, dict):
+            continue
+        model_count += len(embedding_store)
+        for vector in embedding_store.values():
+            if isinstance(vector, list):
+                dimensions.append(len(vector))
+
+    return {
+        "name": name,
+        "path": str(path),
+        "size": stat.st_size,
+        "modifiedAt": _to_iso(stat.st_mtime),
+        "entryCount": entry_count,
+        "modelCount": model_count,
+        "dimensions": sorted(set(dimensions)),
     }
 
 
@@ -113,6 +149,23 @@ def list_presets() -> list[dict[str, Any]]:
                 "modifiedAt": _to_iso(stat.st_mtime),
             }
         )
+    return items
+
+
+def list_embeddings() -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for path in sorted(embeddings_dir().glob("*.json")):
+        try:
+            payload = _read_json_file(path)
+            items.append(_embedding_summary(path, path.stem, payload))
+        except (OSError, json.JSONDecodeError, ValueError):
+            items.append(
+                {
+                    "name": path.stem,
+                    "path": str(path),
+                    "invalid": True,
+                }
+            )
     return items
 
 
@@ -191,6 +244,74 @@ def delete_preset(name: str) -> None:
         raise FileNotFoundError(preset_path)
 
 
+def _normalize_embedding_vector(vector: Any) -> list[float]:
+    if not isinstance(vector, list) or not vector:
+        raise ValueError("Ein Embedding-Vektor muss eine nicht-leere Liste sein.")
+
+    normalized: list[float] = []
+    for value in vector:
+        if not isinstance(value, (int, float)):
+            raise ValueError("Embedding-Werte muessen numerisch sein.")
+        normalized.append(float(value))
+    return normalized
+
+
+def validate_embeddings_payload(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("Embeddings muessen als nicht-leere JSON-Liste gespeichert werden.")
+
+    normalized_entries: list[dict[str, Any]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError("Jeder Embedding-Eintrag muss ein JSON-Objekt sein.")
+
+        name = item.get("name")
+        embedding_store = item.get("embedding_store")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("Jeder Embedding-Eintrag braucht einen Namen.")
+        if not isinstance(embedding_store, dict) or not embedding_store:
+            raise ValueError(
+                "Jeder Embedding-Eintrag braucht ein nicht-leeres embedding_store-Objekt."
+            )
+
+        normalized_store: dict[str, list[float]] = {}
+        for model_name, vector in embedding_store.items():
+            if not isinstance(model_name, str) or not model_name.strip():
+                raise ValueError("Jeder Embedding-Modelname muss ein Textwert sein.")
+            normalized_store[model_name.strip()] = _normalize_embedding_vector(vector)
+
+        normalized_entries.append(
+            {
+                "name": name.strip(),
+                "embedding_store": normalized_store,
+            }
+        )
+
+    return normalized_entries
+
+
+def read_embedding(name: str) -> list[dict[str, Any]]:
+    safe_name = validate_item_name(name)
+    payload = _read_json_file(embeddings_dir() / f"{safe_name}.json")
+    return validate_embeddings_payload(payload)
+
+
+def write_embedding(name: str, payload: Any) -> Path:
+    safe_name = validate_item_name(name)
+    normalized_payload = validate_embeddings_payload(payload)
+    path = embeddings_dir() / f"{safe_name}.json"
+    _write_json_file(path, normalized_payload)
+    return path
+
+
+def delete_embedding(name: str) -> None:
+    safe_name = validate_item_name(name)
+    path = embeddings_dir() / f"{safe_name}.json"
+    if not path.exists():
+        raise FileNotFoundError(path)
+    path.unlink()
+
+
 def read_last_workspace() -> dict[str, Any]:
     path = last_workspace_path()
     if not path.is_file():
@@ -222,6 +343,7 @@ def project_data_summary() -> dict[str, Any]:
         "jobs": len(list_jobs()),
         "jobExports": len(list_job_exports()),
         "presets": len(list_presets()),
+        "embeddings": len(list_embeddings()),
         "lastWorkspace": summarize_workspace(),
     }
 

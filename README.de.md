@@ -142,6 +142,18 @@ Wichtig:
 - Die eigentliche GPU-Verarbeitung läuft weiterhin primär über die Desktop-Architektur.
 - Die Web-Konsole ist also aktuell eine sinnvolle Ergänzung, aber noch kein vollständiger Ersatz für die native Anwendung.
 
+## Dokumentation und interaktive Hilfe
+
+Die Web-Konsole enthält jetzt eine integrierte Hilfe, damit du ohne langes Suchen zu Erklärungen kommst:
+
+- `Schnellhilfe` im Kopfbereich öffnet eine zentrale Dokumentationsfläche direkt in der Oberfläche
+- Fragezeichen-Schaltflächen neben den Bereichen zeigen per Tooltip eine Kurzinfo und springen per Klick zur passenden Erklärung
+- die Hilfe deckt aktuell Systemstatus, Jobs, Job-Exporte, Presets, Embeddings, den letzten Arbeitsbereich, den JSON-Editor und den Embedding-Builder ab
+
+Zusätzliche Projektdokumentation:
+
+- [docs/web-konsole-hilfe.de.md](docs/web-konsole-hilfe.de.md)
+
 ## Aktueller Architekturstand
 
 Langfristig ist der sinnvolle Weg für Browser-Betrieb:

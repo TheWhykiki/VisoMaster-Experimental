@@ -7,6 +7,7 @@ import socket
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 from app.services import storage, system_info
@@ -45,6 +46,9 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
         if path == "/api/presets":
             self._write_json(HTTPStatus.OK, {"items": storage.list_presets()})
             return
+        if path == "/api/embeddings":
+            self._write_json(HTTPStatus.OK, {"items": storage.list_embeddings()})
+            return
         if path == "/api/workspaces/last":
             self._write_json(
                 HTTPStatus.OK,
@@ -67,6 +71,11 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 storage.read_preset, path.removeprefix("/api/presets/")
             )
             return
+        if path.startswith("/api/embeddings/"):
+            self._read_named_payload(
+                storage.read_embedding, path.removeprefix("/api/embeddings/")
+            )
+            return
 
         self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route nicht gefunden."})
 
@@ -79,6 +88,9 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
 
         try:
             if path == "/api/workspaces/last":
+                payload = self._require_json_object(
+                    payload, "Der Arbeitsbereich muss als JSON-Objekt gesendet werden."
+                )
                 saved_path = storage.write_last_workspace(payload)
                 self._write_json(
                     HTTPStatus.OK,
@@ -106,6 +118,9 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 return
             if path.startswith("/api/presets/"):
                 name = unquote(path.removeprefix("/api/presets/"))
+                payload = self._require_json_object(
+                    payload, "Ein Preset muss als JSON-Objekt gesendet werden."
+                )
                 parameters = payload.get("parameters", {})
                 control = payload.get("control", {})
                 saved_paths = storage.write_preset(name, parameters, control)
@@ -115,6 +130,14 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                         "message": "Preset gespeichert.",
                         "paths": {key: str(value) for key, value in saved_paths.items()},
                     },
+                )
+                return
+            if path.startswith("/api/embeddings/"):
+                name = unquote(path.removeprefix("/api/embeddings/"))
+                saved_path = storage.write_embedding(name, payload)
+                self._write_json(
+                    HTTPStatus.OK,
+                    {"message": "Embedding gespeichert.", "path": str(saved_path)},
                 )
                 return
         except ValueError as exc:
@@ -142,6 +165,10 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 storage.delete_preset(unquote(path.removeprefix("/api/presets/")))
                 self._write_json(HTTPStatus.OK, {"message": "Preset gelöscht."})
                 return
+            if path.startswith("/api/embeddings/"):
+                storage.delete_embedding(unquote(path.removeprefix("/api/embeddings/")))
+                self._write_json(HTTPStatus.OK, {"message": "Embedding gelöscht."})
+                return
         except FileNotFoundError:
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "Eintrag nicht gefunden."})
             return
@@ -162,7 +189,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             return
         self._write_json(HTTPStatus.OK, payload)
 
-    def _read_request_json(self) -> dict | None:
+    def _read_request_json(self) -> Any | None:
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length <= 0:
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": "Request-Body fehlt."})
@@ -176,6 +203,11 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 {"error": f"Ungültiger JSON-Inhalt: {exc.msg}."},
             )
             return None
+
+    def _require_json_object(self, payload: Any, error_message: str) -> dict:
+        if not isinstance(payload, dict):
+            raise ValueError(error_message)
+        return payload
 
     def _serve_static(self, relative_path: str) -> None:
         target = (STATIC_DIR / relative_path).resolve()
@@ -191,7 +223,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
         with target.open("rb") as handle:
             self.wfile.write(handle.read())
 
-    def _write_json(self, status: HTTPStatus, payload: dict) -> None:
+    def _write_json(self, status: HTTPStatus, payload: Any) -> None:
         body = json.dumps(payload, indent=2).encode("utf-8")
         self.send_response(status)
         self._send_common_headers()

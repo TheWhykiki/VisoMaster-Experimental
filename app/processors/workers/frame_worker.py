@@ -20,6 +20,7 @@ import numpy as np
 import torch.nn.functional as F
 
 from app.processors.utils import faceutil
+from app.processors.models_data import FLUX_SWAPPER_MODEL_NAME
 import app.ui.widgets.actions.common_actions as common_widget_actions
 from app.ui.widgets.actions import video_control_actions
 from app.helpers.miscellaneous import ParametersDict, get_scaling_transforms
@@ -223,6 +224,12 @@ class FrameWorker(threading.Thread):
         return denoised_image
 
     def _find_best_target_match(self, detected_embedding_np, control_global):
+        """
+        Shared person matching for all swappers, including ACE++ (FLUX).
+
+        The matched target face decides which person in the frame is processed.
+        The mask generator is a separate concern handled later in the swapper path.
+        """
         best_target_button = None
         best_params_pd = None
         highest_sim = -1.0
@@ -305,11 +312,20 @@ class FrameWorker(threading.Thread):
                 )
 
         s_e_for_swap_core = s_e_for_swap_np if swap_button_is_checked_global else None
+        source_face_crop_rgb = (
+            self._get_primary_input_face_crop_rgb(target_face_button)
+            if swap_button_is_checked_global
+            else None
+        )
 
         if (
             swap_button_is_checked_global
             and (
                 s_e_for_swap_core is not None
+                or (
+                    parameters_for_face["SwapModelSelection"] == FLUX_SWAPPER_MODEL_NAME
+                    and source_face_crop_rgb is not None
+                )
                 or (
                     parameters_for_face["SwapModelSelection"] == "DeepFaceLive (DFM)"
                     and dfm_model_instance_local is not None
@@ -327,6 +343,7 @@ class FrameWorker(threading.Thread):
                     kps=kps_all_on_crop_param,
                     s_e=s_e_for_swap_core,
                     t_e=t_e_for_swap_np,
+                    source_face_crop=source_face_crop_rgb,
                     parameters=parameters_for_face,
                     control=control_global,
                     dfm_model_name=parameters_for_face["DFMModelSelection"],
@@ -840,6 +857,9 @@ class FrameWorker(threading.Thread):
                                     s_e = None
 
                             kv_map_for_swap = target_face.assigned_kv_map
+                            source_face_crop_rgb = self._get_primary_input_face_crop_rgb(
+                                target_face
+                            )
                             (
                                 img,
                                 best_fface["original_face"],
@@ -850,6 +870,7 @@ class FrameWorker(threading.Thread):
                                 best_fface["kps_all"],
                                 s_e=s_e,
                                 t_e=target_face.get_embedding(arcface_model),
+                                source_face_crop=source_face_crop_rgb,
                                 parameters=params,
                                 control=control,
                                 dfm_model_name=params["DFMModelSelection"],
@@ -907,6 +928,9 @@ class FrameWorker(threading.Thread):
                                     s_e = None
 
                             kv_map_for_swap = best_target.assigned_kv_map
+                            source_face_crop_rgb = self._get_primary_input_face_crop_rgb(
+                                best_target
+                            )
                             img, fface["original_face"], fface["swap_mask"] = (
                                 self.swap_core(
                                     img,
@@ -914,6 +938,7 @@ class FrameWorker(threading.Thread):
                                     fface["kps_all"],
                                     s_e=s_e,
                                     t_e=best_target.get_embedding(arcface_model),
+                                    source_face_crop=source_face_crop_rgb,
                                     parameters=params,
                                     control=control,
                                     dfm_model_name=params["DFMModelSelection"],
@@ -1214,6 +1239,140 @@ class FrameWorker(threading.Thread):
             original_face_128,
         )
 
+    def _get_primary_input_face_crop_rgb(
+        self, target_face_button: "widget_components.TargetFaceCardButton" | None
+    ) -> np.ndarray | None:
+        if not target_face_button or not target_face_button.assigned_input_faces:
+            return None
+
+        first_input_face_id = next(iter(target_face_button.assigned_input_faces.keys()))
+        input_face_button = self.main_window.input_faces.get(first_input_face_id)
+        if not input_face_button or getattr(input_face_button, "cropped_face", None) is None:
+            return None
+
+        source_crop_bgr = input_face_button.cropped_face
+        if not isinstance(source_crop_bgr, np.ndarray) or source_crop_bgr.size == 0:
+            return None
+
+        return np.ascontiguousarray(source_crop_bgr[..., ::-1])
+
+    def build_flux_inpaint_mask(
+        self,
+        target_face_512: torch.Tensor,
+        parameters: dict,
+    ) -> np.ndarray:
+        mask_512 = self.build_flux_inpaint_mask_tensor(target_face_512, parameters)
+        return mask_512.squeeze(0).detach().cpu().numpy()
+
+    def build_flux_inpaint_mask_tensor(
+        self,
+        target_face_512: torch.Tensor,
+        parameters: dict,
+    ) -> torch.Tensor:
+        mask_provider = parameters.get(
+            "FluxMaskProviderSelection", "Face Parser (Full Face)"
+        )
+        if mask_provider != "Face Parser (Full Face)":
+            raise RuntimeError(
+                f"Unsupported ACE++ mask provider selected: {mask_provider}"
+            )
+
+        return self.models_processor.build_full_face_mask(
+            target_face_512,
+            expand=int(parameters.get("FluxMaskExpandSlider", 8)),
+            blur=int(parameters.get("FluxMaskBlurSlider", 10)),
+            include_hair=bool(parameters.get("FluxIncludeHairMaskToggle", False)),
+        )
+
+    @staticmethod
+    def _matrix_2x3_to_3x3(matrix_2x3: np.ndarray) -> np.ndarray:
+        matrix_3x3 = np.eye(3, dtype=np.float32)
+        matrix_3x3[0:2, :] = np.asarray(matrix_2x3, dtype=np.float32)
+        return matrix_3x3
+
+    def build_flux_target_context(
+        self,
+        img: torch.Tensor,
+        kps_5: np.ndarray,
+        kps: np.ndarray | bool,
+        parameters: dict,
+    ) -> dict:
+        crop_points = kps if isinstance(kps, np.ndarray) else kps_5
+        target_face_512, M_o2c, _ = faceutil.warp_face_by_face_landmark_x(
+            img,
+            crop_points,
+            dsize=512,
+            scale=float(parameters.get("FluxCropScaleDecimalSlider", 1.85)),
+            vy_ratio=float(parameters.get("FluxCropVYRatioDecimalSlider", -0.15)),
+            interpolation=interpolation_original_face_512,
+        )
+        return {
+            "target_face_512": target_face_512,
+            "M_o2c": np.asarray(M_o2c, dtype=np.float32),
+        }
+
+    def remap_flux_crop_to_aligned_face(
+        self,
+        swapped_flux_face_512: torch.Tensor,
+        flux_mask_512: torch.Tensor,
+        original_face_512: torch.Tensor,
+        aligned_face_tform: trans.SimilarityTransform,
+        flux_target_context: dict,
+    ) -> torch.Tensor:
+        flux_matrix = self._matrix_2x3_to_3x3(flux_target_context["M_o2c"])
+        aligned_inverse = np.asarray(aligned_face_tform.inverse.params, dtype=np.float32)
+        face_tile_to_flux = flux_matrix @ aligned_inverse
+
+        tform_face_tile_to_flux = trans.SimilarityTransform()
+        tform_face_tile_to_flux.params = face_tile_to_flux
+
+        _, source_grid_normalized_xy = self.get_grid_for_pasting(
+            tform_face_tile_to_flux,
+            512,
+            512,
+            512,
+            512,
+            swapped_flux_face_512.device,
+        )
+
+        remapped_swap = torch.nn.functional.grid_sample(
+            swapped_flux_face_512.unsqueeze(0),
+            source_grid_normalized_xy,
+            mode="bilinear",
+            padding_mode="border",
+            align_corners=False,
+        ).squeeze(0)
+        remapped_mask = torch.nn.functional.grid_sample(
+            flux_mask_512.unsqueeze(0),
+            source_grid_normalized_xy,
+            mode="bilinear",
+            padding_mode="zeros",
+            align_corners=False,
+        ).squeeze(0).clamp(0.0, 1.0)
+
+        original_face_float = original_face_512.to(torch.float32)
+        return (
+            remapped_swap.to(torch.float32) * remapped_mask
+            + original_face_float * (1.0 - remapped_mask)
+        ).clamp(0.0, 255.0)
+
+    def build_flux_mask_debug_preview(
+        self,
+        target_face_512: torch.Tensor,
+        flux_mask_512: torch.Tensor,
+    ) -> torch.Tensor:
+        target_face_float = target_face_512.to(torch.float32)
+        mask_rgb = flux_mask_512.repeat(3, 1, 1).clamp(0.0, 1.0)
+        overlay_color = torch.tensor(
+            [[[255.0]], [[64.0]], [[64.0]]],
+            dtype=torch.float32,
+            device=target_face_512.device,
+        )
+        return (
+            target_face_float * (1.0 - mask_rgb * 0.55)
+            + overlay_color * (mask_rgb * 0.55)
+        ).clamp(0.0, 255.0)
+
     def get_affined_face_dim_and_swapping_latents(
         self,
         original_faces: tuple,
@@ -1221,6 +1380,7 @@ class FrameWorker(threading.Thread):
         dfm_model_name,
         s_e,
         t_e,
+        source_face_crop,
         parameters,
         cmddebug,
         tform,
@@ -1401,6 +1561,11 @@ class FrameWorker(threading.Thread):
             dim = 2
             input_face_affined = original_face_256
 
+        elif swapper_model == FLUX_SWAPPER_MODEL_NAME:
+            latent = None
+            dim = 4
+            input_face_affined = original_face_512
+
         if swapper_model == "DeepFaceLive (DFM)" and dfm_model_name:
             dfm_model_instance = self.models_processor.load_dfm_model(dfm_model_name)
             latent = []
@@ -1414,12 +1579,16 @@ class FrameWorker(threading.Thread):
         output,
         input_face_affined,
         original_face_512,
+        tform,
+        flux_target_context,
+        source_face_crop,
         latent,
         itex,
         dim,
         swapper_model,
         dfm_model,
         parameters,
+        control,
     ):
         # original_face_512, original_face_384, original_face_256, original_face_128 = original_faces
         if parameters["PreSwapSharpnessDecimalSlider"] != 1.0:
@@ -1591,6 +1760,54 @@ class FrameWorker(threading.Thread):
             swap = t512(swapped_face_tensor)
             return swap, prev_face
 
+        elif swapper_model == FLUX_SWAPPER_MODEL_NAME:
+            prev_face = input_face_affined.clone()
+            flux_target_face_512 = (
+                flux_target_context["target_face_512"]
+                if flux_target_context
+                else original_face_512
+            )
+            flux_mask_tensor = self.build_flux_inpaint_mask_tensor(
+                flux_target_face_512,
+                parameters,
+            )
+            flux_mask = flux_mask_tensor.squeeze(0).detach().cpu().numpy()
+
+            if parameters.get("FluxDebugMaskToggle", False):
+                swapped_face_tensor = self.build_flux_mask_debug_preview(
+                    flux_target_face_512,
+                    flux_mask_tensor,
+                )
+            else:
+                target_face_rgb = (
+                    flux_target_face_512.permute(1, 2, 0)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.uint8)
+                )
+                swapped_face_tensor = self.models_processor.run_swapper_flux_ace_plus(
+                    target_face_rgb,
+                    source_face_crop,
+                    flux_mask,
+                    parameters,
+                )
+
+            if swapped_face_tensor is None:
+                swap = original_face_512.clone()
+            else:
+                if flux_target_context:
+                    swap = self.remap_flux_crop_to_aligned_face(
+                        swapped_face_tensor,
+                        flux_mask_tensor,
+                        original_face_512,
+                        tform,
+                        flux_target_context,
+                    )
+                else:
+                    swap = t512(swapped_face_tensor)
+            return swap, prev_face
+
         elif swapper_model == "DeepFaceLive (DFM)" and dfm_model:
             out_celeb, _, _ = dfm_model.convert(
                 original_face_512,
@@ -1700,6 +1917,7 @@ class FrameWorker(threading.Thread):
         kps: np.ndarray | bool = False,
         s_e: np.ndarray | None = None,
         t_e: np.ndarray | None = None,
+        source_face_crop: np.ndarray | None = None,
         parameters: dict | None = None,
         control: dict | None = None,
         dfm_model_name: str | None = None,
@@ -1735,9 +1953,20 @@ class FrameWorker(threading.Thread):
         )
         swap = original_face_512
         prev_face = None
+        flux_target_context = None
 
-        if valid_s_e is not None or (
-            swapper_model == "DeepFaceLive (DFM)" and dfm_model_name
+        if swapper_model == FLUX_SWAPPER_MODEL_NAME and source_face_crop is not None:
+            flux_target_context = self.build_flux_target_context(
+                img,
+                kps_5,
+                kps,
+                parameters,
+            )
+
+        if (
+            valid_s_e is not None
+            or (swapper_model == "DeepFaceLive (DFM)" and dfm_model_name)
+            or (swapper_model == FLUX_SWAPPER_MODEL_NAME and source_face_crop is not None)
         ):
             input_face_affined, dfm_model_instance, dim, latent = (
                 self.get_affined_face_dim_and_swapping_latents(
@@ -1746,6 +1975,7 @@ class FrameWorker(threading.Thread):
                     dfm_model_name,
                     valid_s_e,
                     valid_t_e,
+                    source_face_crop,
                     parameters,
                     debug,
                     tform,
@@ -1784,12 +2014,16 @@ class FrameWorker(threading.Thread):
                 output,
                 input_face_affined,
                 original_face_512,
+                tform,
+                flux_target_context,
+                source_face_crop,
                 latent,
                 itex,
                 dim,
                 swapper_model,
                 dfm_model_instance,
                 parameters,
+                control,
             )
 
         else:

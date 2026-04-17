@@ -37,7 +37,13 @@ from app.ui.widgets.swapper_layout_data import SWAPPER_LAYOUT_DATA
 from app.ui.widgets.settings_layout_data import SETTINGS_LAYOUT_DATA
 from app.ui.widgets.face_editor_layout_data import FACE_EDITOR_LAYOUT_DATA
 from app.ui.translations import apply_german_main_window_translation
-from app.helpers.miscellaneous import DFMModelManager, ParametersDict, ThumbnailManager
+from app.helpers.miscellaneous import (
+    DFMModelManager,
+    FluxLoraManager,
+    FluxModelManager,
+    ParametersDict,
+    ThumbnailManager,
+)
 from app.helpers.paths import project_path
 from app.helpers.typing_helper import (
     FacesParametersTypes,
@@ -104,6 +110,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # --- Initialize Managers ---
         self.thumbnail_manager = ThumbnailManager()
         self.dfm_model_manager = DFMModelManager()
+        self.flux_model_manager = FluxModelManager()
+        self.flux_lora_manager = FluxLoraManager()
 
         self.parameters: FacesParametersTypes = {}
         self.default_parameters: ParametersTypes = {}

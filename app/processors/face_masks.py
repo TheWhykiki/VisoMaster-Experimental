@@ -382,6 +382,41 @@ class FaceMasks:
             lut[torch.tensor(classes, device=labels.device, dtype=torch.long)] = 1.0
         return lut[labels]  # [256,256] float {0,1}
 
+    def build_full_face_mask(
+        self,
+        img_uint8_3x512x512: torch.Tensor,
+        expand: int = 6,
+        blur: int = 8,
+        include_hair: bool = False,
+    ) -> torch.Tensor:
+        """
+        Returns a soft 512x512 face-only mask for generative swappers such as ACE++.
+
+        The mask intentionally stays coarse and covers the entire face region instead
+        of composing several fine-grained editor masks.
+        """
+        labels_256 = self._faceparser_labels(img_uint8_3x512x512)
+        face_classes = [1, 2, 3, 4, 5, 6, 10, 11, 12, 13]
+        if include_hair:
+            face_classes.append(17)
+
+        face_mask_256 = self._mask_from_labels_lut(labels_256, face_classes)
+        if expand != 0:
+            face_mask_256 = self._dilate_binary(face_mask_256, int(expand), mode="conv")
+
+        face_mask_512 = F.interpolate(
+            face_mask_256.unsqueeze(0).unsqueeze(0),
+            size=(512, 512),
+            mode="bilinear",
+            align_corners=False,
+        ).squeeze(0)
+
+        if blur > 0:
+            gauss = transforms.GaussianBlur(blur * 2 + 1, (blur + 1) * 0.2)
+            face_mask_512 = gauss(face_mask_512)
+
+        return face_mask_512.clamp(0, 1)
+
     def process_masks_and_masks(
         self,
         swap_restorecalc: torch.Tensor,  # [3,512,512] uint8

@@ -60,6 +60,7 @@ def system_status() -> dict[str, Any]:
             "browserUi": True,
             "jobApi": True,
             "presetApi": True,
+            "embeddingApi": True,
             "workspaceApi": True,
             "headlessProcessingApi": False,
         },

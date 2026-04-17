@@ -31,3 +31,10 @@ omegaconf
 einops
 lightning
 send2trash
+diffusers>=0.35.1
+transformers>=4.47.0
+accelerate
+safetensors
+huggingface-hub
+sentencepiece
+peft
