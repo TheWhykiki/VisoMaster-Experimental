@@ -68,7 +68,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             )
             return
 
-        self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route not found."})
+        self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route nicht gefunden."})
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -83,7 +83,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 self._write_json(
                     HTTPStatus.OK,
                     {
-                        "message": "Last workspace saved.",
+                        "message": "Letzter Arbeitsbereich gespeichert.",
                         "path": str(saved_path),
                     },
                 )
@@ -93,7 +93,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 saved_path = storage.write_job(name, payload)
                 self._write_json(
                     HTTPStatus.OK,
-                    {"message": "Job saved.", "path": str(saved_path)},
+                    {"message": "Job gespeichert.", "path": str(saved_path)},
                 )
                 return
             if path.startswith("/api/job-exports/"):
@@ -101,7 +101,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 saved_path = storage.write_job_export(name, payload)
                 self._write_json(
                     HTTPStatus.OK,
-                    {"message": "Job export saved.", "path": str(saved_path)},
+                    {"message": "Job-Export gespeichert.", "path": str(saved_path)},
                 )
                 return
             if path.startswith("/api/presets/"):
@@ -112,7 +112,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 self._write_json(
                     HTTPStatus.OK,
                     {
-                        "message": "Preset saved.",
+                        "message": "Preset gespeichert.",
                         "paths": {key: str(value) for key, value in saved_paths.items()},
                     },
                 )
@@ -121,7 +121,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-        self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route not found."})
+        self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route nicht gefunden."})
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
@@ -130,32 +130,32 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
         try:
             if path.startswith("/api/jobs/"):
                 storage.delete_job(unquote(path.removeprefix("/api/jobs/")))
-                self._write_json(HTTPStatus.OK, {"message": "Job deleted."})
+                self._write_json(HTTPStatus.OK, {"message": "Job gelöscht."})
                 return
             if path.startswith("/api/job-exports/"):
                 storage.delete_job_export(
                     unquote(path.removeprefix("/api/job-exports/"))
                 )
-                self._write_json(HTTPStatus.OK, {"message": "Job export deleted."})
+                self._write_json(HTTPStatus.OK, {"message": "Job-Export gelöscht."})
                 return
             if path.startswith("/api/presets/"):
                 storage.delete_preset(unquote(path.removeprefix("/api/presets/")))
-                self._write_json(HTTPStatus.OK, {"message": "Preset deleted."})
+                self._write_json(HTTPStatus.OK, {"message": "Preset gelöscht."})
                 return
         except FileNotFoundError:
-            self._write_json(HTTPStatus.NOT_FOUND, {"error": "Item not found."})
+            self._write_json(HTTPStatus.NOT_FOUND, {"error": "Eintrag nicht gefunden."})
             return
         except ValueError as exc:
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-        self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route not found."})
+        self._write_json(HTTPStatus.NOT_FOUND, {"error": "Route nicht gefunden."})
 
     def _read_named_payload(self, reader, raw_name: str) -> None:
         try:
             payload = reader(unquote(raw_name))
         except FileNotFoundError:
-            self._write_json(HTTPStatus.NOT_FOUND, {"error": "Item not found."})
+            self._write_json(HTTPStatus.NOT_FOUND, {"error": "Eintrag nicht gefunden."})
             return
         except ValueError as exc:
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
@@ -165,7 +165,7 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
     def _read_request_json(self) -> dict | None:
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length <= 0:
-            self._write_json(HTTPStatus.BAD_REQUEST, {"error": "Missing request body."})
+            self._write_json(HTTPStatus.BAD_REQUEST, {"error": "Request-Body fehlt."})
             return None
         raw = self.rfile.read(content_length)
         try:
@@ -173,14 +173,14 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as exc:
             self._write_json(
                 HTTPStatus.BAD_REQUEST,
-                {"error": f"Invalid JSON payload: {exc.msg}."},
+                {"error": f"Ungültiger JSON-Inhalt: {exc.msg}."},
             )
             return None
 
     def _serve_static(self, relative_path: str) -> None:
         target = (STATIC_DIR / relative_path).resolve()
         if not str(target).startswith(str(STATIC_DIR.resolve())) or not target.is_file():
-            self._write_json(HTTPStatus.NOT_FOUND, {"error": "Static file not found."})
+            self._write_json(HTTPStatus.NOT_FOUND, {"error": "Statische Datei nicht gefunden."})
             return
 
         mime_type, _ = mimetypes.guess_type(target.name)

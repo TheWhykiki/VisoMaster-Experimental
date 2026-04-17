@@ -62,14 +62,14 @@ def rename_preset(main_window: "MainWindow", item: "QListWidgetItem"):
             refresh_presets_list(main_window)
             common_widget_actions.create_and_show_toast_message(
                 main_window,
-                "Preset Renamed",
-                f"Renamed preset: {old_name} to {new_name}",
+                "Preset umbenannt",
+                f"Preset wurde von {old_name} zu {new_name} umbenannt.",
             )
         except Exception as e:
             QtWidgets.QMessageBox.critical(
                 main_window,
-                "Error",
-                f"Failed to rename preset: {str(e)}",
+                "Fehler",
+                f"Preset konnte nicht umbenannt werden: {str(e)}",
                 QtWidgets.QMessageBox.Ok,
             )
 
@@ -91,8 +91,8 @@ def delete_preset(main_window: "MainWindow", item: "QListWidgetItem"):
     except Exception as e:
         QtWidgets.QMessageBox.critical(
             main_window,
-            "Error",
-            f"Failed to delete preset: {str(e)}",
+            "Fehler",
+            f"Preset konnte nicht gelöscht werden: {str(e)}",
             QtWidgets.QMessageBox.Ok,
         )
 
@@ -102,7 +102,7 @@ def show_preset_context_menu(main_window: "MainWindow", position):
     item = main_window.presetsList.itemAt(position)
     if item:
         menu = QtWidgets.QMenu()
-        rename_action = menu.addAction("Rename")
+        rename_action = menu.addAction("Umbenennen")
         delete_action = menu.addAction("Delete")
         action = menu.exec_(main_window.presetsList.viewport().mapToGlobal(position))
 

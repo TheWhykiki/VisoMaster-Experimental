@@ -32,10 +32,10 @@ def last_workspace_path() -> Path:
 def validate_item_name(name: str) -> str:
     cleaned = name.strip()
     if not cleaned:
-        raise ValueError("Name must not be empty.")
+        raise ValueError("Der Name darf nicht leer sein.")
     if not VALID_NAME_RE.match(cleaned):
         raise ValueError(
-            "Name contains invalid characters. Only letters, numbers, spaces, dashes, and underscores are allowed."
+            "Der Name enthält ungültige Zeichen. Erlaubt sind nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche."
         )
     return cleaned
 

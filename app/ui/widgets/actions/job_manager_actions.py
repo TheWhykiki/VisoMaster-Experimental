@@ -124,14 +124,14 @@ def delete_job(main_window: "MainWindow"):
     selected_jobs = get_selected_jobs(main_window)
     if not selected_jobs:
         QtWidgets.QMessageBox.warning(
-            main_window, "No Job Selected", "Please select one or more jobs to delete."
+            main_window, "Kein Job ausgewählt", "Bitte wähle einen oder mehrere Jobs zum Löschen aus."
         )
         return False
 
     confirm = QtWidgets.QMessageBox.question(
         main_window,
-        "Confirm Deletion",
-        f"Are you sure you want to delete the selected job{'s' if len(selected_jobs) > 1 else ''}?\n\n"
+        "Löschen bestätigen",
+        f"Möchtest du {'diese Jobs' if len(selected_jobs) > 1 else 'diesen Job'} wirklich löschen?\n\n"
         + ", ".join(selected_jobs),
         QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
     )
@@ -152,7 +152,7 @@ def delete_job(main_window: "MainWindow"):
         return True
     else:
         QtWidgets.QMessageBox.warning(
-            main_window, "Job(s) Not Found", "None of the selected jobs exist."
+            main_window, "Jobs nicht gefunden", "Keiner der ausgewählten Jobs existiert."
         )
         return False
 
@@ -162,7 +162,7 @@ def load_job(main_window):
     selected_jobs = get_selected_jobs(main_window)
     if not selected_jobs:
         QMessageBox.warning(
-            main_window, "No Job Selected", "Please select a job from the list."
+            main_window, "Kein Job ausgewählt", "Bitte wähle einen Job aus der Liste aus."
         )
         return
     if len(selected_jobs) > 1:

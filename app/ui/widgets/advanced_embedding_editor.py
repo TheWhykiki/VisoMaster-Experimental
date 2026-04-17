@@ -207,11 +207,11 @@ class EntryWidget(QFrame):
                 background-color: {ACCENT_COLOR};
             }}
         """)
-        rename_action = menu.addAction("Rename")
-        copy_action = menu.addAction("Copy")
-        paste_action = menu.addAction("Paste")
+        rename_action = menu.addAction("Umbenennen")
+        copy_action = menu.addAction("Kopieren")
+        paste_action = menu.addAction("Einfügen")
         menu.addSeparator()
-        delete_action = menu.addAction("Delete")
+        delete_action = menu.addAction("Löschen")
 
         action = menu.exec(self.mapToGlobal(pos))
 
@@ -233,7 +233,7 @@ class EntryWidget(QFrame):
 
     def start_rename(self):
         text, ok = QInputDialog.getText(
-            self, "Rename Entry", "Enter new name:", QLineEdit.Normal, self.name
+            self, "Eintrag umbenennen", "Neuen Namen eingeben:", QLineEdit.Normal, self.name
         )
         if ok and text and text != self.name:
             main_window = self.window()
@@ -433,7 +433,7 @@ class StacksWidget(QWidget):
 class EmbeddingGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Advanced Embedding Editor")
+        self.setWindowTitle("Erweiterter Einbettungs-Editor")
         # MARKER: Initialize with OrderedDict
         self.embedding_data = OrderedDict()
         self.original_embedding_data = OrderedDict()
@@ -463,19 +463,19 @@ class EmbeddingGUI(QWidget):
         top_layout = QHBoxLayout(top_widget)
         top_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.load_button = QPushButton("Load File(s)")
+        self.load_button = QPushButton("Datei(en) laden")
         self.load_button.clicked.connect(self.load_files)
         top_layout.addWidget(self.load_button)
 
-        self.additive_load_button = QPushButton("Load Additive")
+        self.additive_load_button = QPushButton("Additiv laden")
         self.additive_load_button.clicked.connect(self.additive_load_files)
         top_layout.addWidget(self.additive_load_button)
 
-        self.save_as_button = QPushButton("Save As")
+        self.save_as_button = QPushButton("Speichern unter")
         self.save_as_button.clicked.connect(self.save_as_file)
         top_layout.addWidget(self.save_as_button)
 
-        self.save_button = QPushButton("Save Selected")
+        self.save_button = QPushButton("Auswahl speichern")
         self.save_button.clicked.connect(self.save_file)
         top_layout.addWidget(self.save_button)
 
@@ -494,7 +494,7 @@ class EmbeddingGUI(QWidget):
         top_layout.addStretch()
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search...")
+        self.search_input.setPlaceholderText("Suchen...")
         self.search_input.textChanged.connect(self.filter_entries)
         top_layout.addWidget(self.search_input)
 
@@ -513,21 +513,21 @@ class EmbeddingGUI(QWidget):
         bottom_layout = QHBoxLayout(bottom_widget)
         bottom_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.select_all_button = QPushButton("Select All")
+        self.select_all_button = QPushButton("Alle auswählen")
         self.select_all_button.clicked.connect(self.select_all)
         bottom_layout.addWidget(self.select_all_button)
 
-        self.deselect_all_button = QPushButton("Deselect All")
+        self.deselect_all_button = QPushButton("Auswahl aufheben")
         self.deselect_all_button.clicked.connect(self.deselect_all)
         bottom_layout.addWidget(self.deselect_all_button)
 
         bottom_layout.addStretch()
 
-        sort_label = QLabel("Sort by:")
+        sort_label = QLabel("Sortieren nach:")
         bottom_layout.addWidget(sort_label)
 
         self.sorting_combo = QComboBox()
-        self.sorting_combo.addItems(["Manual", "Original", "A-Z", "Z-A"])
+        self.sorting_combo.addItems(["Manuell", "Original", "A-Z", "Z-A"])
         self.sorting_combo.currentIndexChanged.connect(self.apply_sorting)
         bottom_layout.addWidget(self.sorting_combo)
 
@@ -542,26 +542,26 @@ class EmbeddingGUI(QWidget):
     def _create_menu(self):
         self.menu_bar = QMenuBar(self)
 
-        edit_menu = self.menu_bar.addMenu("&Edit")
-        undo_action = QAction("Undo", self)
+        edit_menu = self.menu_bar.addMenu("&Bearbeiten")
+        undo_action = QAction("Rückgängig", self)
         undo_action.setShortcut(Qt.CTRL | Qt.Key_Z)
         undo_action.triggered.connect(self.undo)
         edit_menu.addAction(undo_action)
 
-        redo_action = QAction("Redo", self)
+        redo_action = QAction("Wiederholen", self)
         redo_action.setShortcut(Qt.CTRL | Qt.SHIFT | Qt.Key_Z)
         redo_action.triggered.connect(self.redo)
         edit_menu.addAction(redo_action)
 
         edit_menu.addSeparator()
 
-        paste_action = QAction("Paste", self)
+        paste_action = QAction("Einfügen", self)
         paste_action.setShortcut(Qt.CTRL | Qt.Key_V)
         paste_action.triggered.connect(self.paste_from_clipboard)
         edit_menu.addAction(paste_action)
 
         help_menu = self.menu_bar.addMenu("&Help")
-        shortcuts_action = QAction("About Shortcuts", self)
+        shortcuts_action = QAction("Tastenkürzel", self)
         shortcuts_action.triggered.connect(self.show_help_dialog)
         help_menu.addAction(shortcuts_action)
 
@@ -707,14 +707,14 @@ class EmbeddingGUI(QWidget):
             return
 
         msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Load Files")
-        msg_box.setText("How would you like to load the dropped files?")
+        msg_box.setWindowTitle("Dateien laden")
+        msg_box.setText("Wie sollen die abgelegten Dateien geladen werden?")
         msg_box.setIcon(QMessageBox.Icon.Question)
         replace_button = msg_box.addButton(
-            "Load (Replace)", QMessageBox.ButtonRole.ActionRole
+            "Laden (ersetzen)", QMessageBox.ButtonRole.ActionRole
         )
         additive_button = msg_box.addButton(
-            "Load (Additive)", QMessageBox.ButtonRole.ActionRole
+            "Laden (additiv)", QMessageBox.ButtonRole.ActionRole
         )
         cancel_button = msg_box.addButton(QMessageBox.StandardButton.Cancel)
         msg_box.exec()
@@ -727,14 +727,14 @@ class EmbeddingGUI(QWidget):
 
     def load_files(self):
         file_paths, _ = QFileDialog.getOpenFileNames(
-            self, "Load Files", "", "JSON Files (*.json);;Text Files (*.txt)"
+            self, "Dateien laden", "", "JSON-Dateien (*.json);;Textdateien (*.txt)"
         )
         if file_paths:
             self.start_file_loading_thread(file_paths, "replace")
 
     def additive_load_files(self):
         file_paths, _ = QFileDialog.getOpenFileNames(
-            self, "Load Additive", "", "JSON Files (*.json);;Text Files (*.txt)"
+            self, "Additiv laden", "", "JSON-Dateien (*.json);;Textdateien (*.txt)"
         )
         if file_paths:
             self.start_file_loading_thread(file_paths, "additive")
@@ -749,7 +749,7 @@ class EmbeddingGUI(QWidget):
         self.thread.start()
         self.load_button.setEnabled(False)
         self.additive_load_button.setEnabled(False)
-        self.load_button.setText("Loading...")
+        self.load_button.setText("Lade...")
 
     def on_loading_finished(self, new_data, file_type):
         if self.current_load_mode == "replace":
@@ -769,7 +769,7 @@ class EmbeddingGUI(QWidget):
         self.current_file_type = file_type
         # Block signals to prevent apply_sorting from firing accidentally
         self.sorting_combo.blockSignals(True)
-        self.sorting_combo.setCurrentText("Manual")
+        self.sorting_combo.setCurrentText("Manuell")
         self.sorting_combo.blockSignals(False)
 
         self.populate_entries()
@@ -778,7 +778,7 @@ class EmbeddingGUI(QWidget):
         self.thread.wait()
         self.load_button.setEnabled(True)
         self.additive_load_button.setEnabled(True)
-        self.load_button.setText("Load File(s)")
+        self.load_button.setText("Datei(en) laden")
 
     def populate_entries(self):
         self.entries_widget.clear_entries()
@@ -823,7 +823,7 @@ class EmbeddingGUI(QWidget):
                     new_embedding_data[name] = data
             self.embedding_data = new_embedding_data
             self.populate_entries()
-            self.sorting_combo.setCurrentText("Manual")
+            self.sorting_combo.setCurrentText("Manuell")
 
     def get_selected_entries(self):
         return [
@@ -850,7 +850,7 @@ class EmbeddingGUI(QWidget):
 
     def apply_sorting(self):
         mode = self.sorting_combo.currentText()
-        if not self.embedding_data or mode == "Manual":
+        if not self.embedding_data or mode == "Manuell":
             return
 
         self._save_state_for_undo()
@@ -884,7 +884,7 @@ class EmbeddingGUI(QWidget):
     def save_file(self):
         selected_entries = self.get_selected_entries()
         if not selected_entries:
-            QMessageBox.warning(self, "No Selection", "No entries selected to save.")
+            QMessageBox.warning(self, "Keine Auswahl", "Es wurden keine Einträge zum Speichern ausgewählt.")
             return
 
         all_widgets = self.entries_widget.get_all_widgets()
@@ -896,12 +896,12 @@ class EmbeddingGUI(QWidget):
         )
 
         default_filter = (
-            "JSON Files (*.json)"
+            "JSON-Dateien (*.json)"
             if self.current_file_type == "json"
-            else "Text Files (*.txt)"
+            else "Textdateien (*.txt)"
         )
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save File", "", f"{default_filter};;All Files (*)"
+            self, "Datei speichern", "", f"{default_filter};;Alle Dateien (*)"
         )
 
         if file_path:
@@ -909,7 +909,7 @@ class EmbeddingGUI(QWidget):
 
     def save_as_file(self):
         if not self.embedding_data:
-            QMessageBox.warning(self, "No Data", "There is no data to save.")
+            QMessageBox.warning(self, "Keine Daten", "Es sind keine Daten zum Speichern vorhanden.")
             return
 
         all_widgets = self.entries_widget.get_all_widgets()
@@ -921,12 +921,12 @@ class EmbeddingGUI(QWidget):
         )
 
         default_filter = (
-            "JSON Files (*.json)"
+            "JSON-Dateien (*.json)"
             if self.current_file_type == "json"
-            else "Text Files (*.txt)"
+            else "Textdateien (*.txt)"
         )
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save File As", "", f"{default_filter};;All Files (*)"
+            self, "Datei speichern unter", "", f"{default_filter};;Alle Dateien (*)"
         )
 
         if file_path:
@@ -947,9 +947,9 @@ class EmbeddingGUI(QWidget):
                         file.write(f"Name: {name}\n")
                         for value in values:
                             file.write(f"{value}\n")
-            QMessageBox.information(self, "Success", "File saved successfully.")
+            QMessageBox.information(self, "Erfolg", "Datei wurde erfolgreich gespeichert.")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save file: {e}")
+            QMessageBox.critical(self, "Fehler", f"Datei konnte nicht gespeichert werden: {e}")
 
     def delete_selected_entries(self):
         selected_widgets = self.get_selected_entries()
@@ -958,8 +958,8 @@ class EmbeddingGUI(QWidget):
 
         reply = QMessageBox.question(
             self,
-            "Confirm Deletion",
-            f"Are you sure you want to delete {len(selected_widgets)} selected item(s)?",
+            "Löschen bestätigen",
+            f"Sollen {len(selected_widgets)} ausgewählte Einträge wirklich gelöscht werden?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -971,7 +971,7 @@ class EmbeddingGUI(QWidget):
                     del self.embedding_data[widget.name]
             self.populate_entries()
             self.last_clicked_widget = None
-            self.sorting_combo.setCurrentText("Manual")
+            self.sorting_combo.setCurrentText("Manuell")
 
     def handle_entry_click(self, widget, event):
         all_widgets = [
@@ -1022,7 +1022,7 @@ class EmbeddingGUI(QWidget):
         try:
             pasted_data = json.loads(clipboard_text)
             if not isinstance(pasted_data, list):
-                raise ValueError("Clipboard data is not a list of embeddings.")
+                raise ValueError("Die Zwischenablage enthält keine Liste von Einbettungen.")
 
             self._save_state_for_undo()
             added_count = 0
@@ -1041,20 +1041,20 @@ class EmbeddingGUI(QWidget):
 
             if added_count > 0:
                 self.populate_entries()
-                self.sorting_combo.setCurrentText("Manual")
+                self.sorting_combo.setCurrentText("Manuell")
                 QMessageBox.information(
                     self,
-                    "Paste Successful",
-                    f"{added_count} embedding(s) have been pasted.",
+                    "Einfügen erfolgreich",
+                    f"{added_count} Einbettung(en) wurden eingefügt.",
                 )
             else:
                 QMessageBox.warning(
-                    self, "Paste", "No valid embeddings found in the clipboard."
+                    self, "Einfügen", "In der Zwischenablage wurden keine gültigen Einbettungen gefunden."
                 )
 
         except (json.JSONDecodeError, ValueError) as e:
             QMessageBox.critical(
-                self, "Paste Error", f"Could not paste embeddings: {e}"
+                self, "Fehler beim Einfügen", f"Einbettungen konnten nicht eingefügt werden: {e}"
             )
 
     def convert_format(self):
@@ -1073,13 +1073,13 @@ class EmbeddingGUI(QWidget):
                 except ValueError:
                     QMessageBox.warning(
                         self,
-                        "Conversion Error",
-                        f"Could not convert values for '{name}' to numbers. Skipping.",
+                        "Konvertierungsfehler",
+                        f"Die Werte für '{name}' konnten nicht in Zahlen umgewandelt werden. Eintrag wird übersprungen.",
                     )
                     continue
             self.embedding_data = new_data
             self.current_file_type = "json"
-            QMessageBox.information(self, "Success", "Converted to Viso (JSON) Format")
+            QMessageBox.information(self, "Erfolg", "In das Viso-Format (JSON) konvertiert.")
         else:
             # MARKER: Rebuild as an OrderedDict
             new_data = OrderedDict()
@@ -1093,11 +1093,11 @@ class EmbeddingGUI(QWidget):
                     new_data[name] = []
             self.embedding_data = new_data
             self.current_file_type = "txt"
-            QMessageBox.information(self, "Success", "Converted to Rope (TXT) Format")
+            QMessageBox.information(self, "Erfolg", "In das Rope-Format (TXT) konvertiert.")
 
         self.populate_entries()
         self.update_button_visibility(True)
-        self.sorting_combo.setCurrentText("Manual")
+        self.sorting_combo.setCurrentText("Manuell")
 
     def start_drag_operation(self):
         selected_widgets = self.get_selected_entries()
@@ -1127,7 +1127,7 @@ class EmbeddingGUI(QWidget):
             }}
         """)
 
-        label = QLabel(f"{num_widgets} item(s)", preview)
+        label = QLabel(f"{num_widgets} Eintrag/Einträge", preview)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setGeometry(0, 0, ENTRY_WIDTH, ENTRY_HEIGHT)
         label.setStyleSheet(
@@ -1165,7 +1165,7 @@ class EmbeddingGUI(QWidget):
         for widget in self.entries_widget.get_all_widgets():
             if widget.name in selected_item_names:
                 widget.checkbox.setChecked(True)
-        self.sorting_combo.setCurrentText("Manual")
+        self.sorting_combo.setCurrentText("Manuell")
 
     def _save_state_for_undo(self):
         self.undo_stack.append(copy.deepcopy(self.embedding_data))
@@ -1177,7 +1177,7 @@ class EmbeddingGUI(QWidget):
         self.embedding_data = data_to_restore
         self.populate_entries()
         self.update_button_visibility(True)
-        self.sorting_combo.setCurrentText("Manual")
+        self.sorting_combo.setCurrentText("Manuell")
 
     def undo(self):
         if not self.undo_stack:
@@ -1195,30 +1195,30 @@ class EmbeddingGUI(QWidget):
 
     def show_help_dialog(self):
         shortcuts_text = """
-        <h3>Keyboard Shortcuts</h3>
-        <p><b>Ctrl + A</b>: Select all visible entries.</p>
-        <p><b>Ctrl + D</b>: Deselect all entries.</p>
-        <p><b>Ctrl + V</b>: Paste copied entries.</p>
-        <p><b>Delete</b>: Delete all selected entries.</p>
-        <p><b>Ctrl + Z</b>: Undo the last action.</p>
-        <p><b>Ctrl + Shift + Z</b>: Redo the last undone action.</p>
+        <h3>Tastenkürzel</h3>
+        <p><b>Strg + A</b>: Alle sichtbaren Einträge auswählen.</p>
+        <p><b>Strg + D</b>: Auswahl aller Einträge aufheben.</p>
+        <p><b>Strg + V</b>: Kopierte Einträge einfügen.</p>
+        <p><b>Entf</b>: Alle ausgewählten Einträge löschen.</p>
+        <p><b>Strg + Z</b>: Letzte Aktion rückgängig machen.</p>
+        <p><b>Strg + Umschalt + Z</b>: Letzte rückgängig gemachte Aktion wiederholen.</p>
 
-        <h3>Mouse Controls</h3>
-        <p><b>Click</b>: Select a single entry.</p>
-        <p><b>Ctrl + Click</b>: Add or remove an entry from the selection.</p>
-        <p><b>Shift + Click</b>: Select a range of entries.</p>
-        <p><b>Mouse Wheel</b>: Scroll horizontally.</p>
-        <p><b>Double-Click Name</b>: Rename an entry.</p>
-        <p><b>Drag & Drop File(s)</b>: Load files into the editor.</p>
-        <p><b>Drag & Drop Entry</b>: Reorder entries.</p>
-        <p><b>Right-Click</b>: Open context menu (Rename, Copy, Paste, Delete).</p>
+        <h3>Maussteuerung</h3>
+        <p><b>Klick</b>: Einen einzelnen Eintrag auswählen.</p>
+        <p><b>Strg + Klick</b>: Einen Eintrag zur Auswahl hinzufügen oder daraus entfernen.</p>
+        <p><b>Umschalt + Klick</b>: Einen Bereich von Einträgen auswählen.</p>
+        <p><b>Mausrad</b>: Horizontal scrollen.</p>
+        <p><b>Doppelklick auf den Namen</b>: Einen Eintrag umbenennen.</p>
+        <p><b>Datei(en) per Drag & Drop</b>: Dateien in den Editor laden.</p>
+        <p><b>Einträge per Drag & Drop</b>: Reihenfolge der Einträge ändern.</p>
+        <p><b>Rechtsklick</b>: Kontextmenü öffnen (Umbenennen, Kopieren, Einfügen, Löschen).</p>
         """
-        QMessageBox.information(self, "About Shortcuts", shortcuts_text)
+        QMessageBox.information(self, "Tastenkürzel", shortcuts_text)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Embedding Editor")
-    parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    parser = argparse.ArgumentParser(description="Einbettungs-Editor")
+    parser.add_argument("--debug", action="store_true", help="Debug-Ausgabe aktivieren")
     args = parser.parse_args()
 
     app = QApplication(sys.argv)

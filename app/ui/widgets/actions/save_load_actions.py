@@ -658,8 +658,8 @@ def save_current_workspace(
             else:
                 common_widget_actions.create_and_show_toast_message(
                     main_window,
-                    "Workspace Saved",
-                    f"Saved Workspace to file: {data_filename}",
+                    "Arbeitsbereich gespeichert",
+                    f"Arbeitsbereich wurde in diese Datei gespeichert: {data_filename}",
                 )
         except Exception as e:
             print(f"[ERROR] Failed to save workspace {data_filename}: {e}")
@@ -668,8 +668,8 @@ def save_current_workspace(
             ):  # Don't show error for auto-save
                 common_widget_actions.create_and_show_messagebox(
                     main_window,
-                    "Save Error",
-                    f"Failed to save workspace:\\n{e}",
+                    "Speicherfehler",
+                    f"Arbeitsbereich konnte nicht gespeichert werden:\\n{e}",
                     main_window,
                 )
 
@@ -678,12 +678,12 @@ def save_current_job(main_window: "MainWindow"):
     # Check for necessary conditions
     if not main_window.selected_video_button:
         common_widget_actions.create_and_show_messagebox(
-            main_window, "Error", "No target video selected.", main_window
+            main_window, "Fehler", "Es wurde kein Zielvideo ausgewählt.", main_window
         )
         return
     if not main_window.target_faces:
         common_widget_actions.create_and_show_messagebox(
-            main_window, "Error", "No target faces detected or assigned.", main_window
+            main_window, "Fehler", "Es wurden keine Zielgesichter erkannt oder zugewiesen.", main_window
         )
         return
     if not any(
@@ -691,8 +691,8 @@ def save_current_job(main_window: "MainWindow"):
     ):
         common_widget_actions.create_and_show_messagebox(
             main_window,
-            "Error",
-            "No input faces assigned to any target face.",
+            "Fehler",
+            "Keinem Zielgesicht wurden Quellgesichter zugewiesen.",
             main_window,
         )
         return
@@ -705,7 +705,7 @@ def save_current_job(main_window: "MainWindow"):
         output_filename = dialog.output_file_name
         if not job_name:
             common_widget_actions.create_and_show_messagebox(
-                main_window, "Error", "Job name cannot be empty.", main_window
+                main_window, "Fehler", "Der Job-Name darf nicht leer sein.", main_window
             )
             return
     else:
@@ -764,7 +764,7 @@ def save_current_job(main_window: "MainWindow"):
         with open(save_path, "w") as f:
             json.dump(job_data, f, indent=4)
         common_widget_actions.create_and_show_toast_message(
-            main_window, "Job Saved", f"Job '{job_name}' saved successfully."
+            main_window, "Job gespeichert", f"Job '{job_name}' wurde erfolgreich gespeichert."
         )
         # Refresh the Job Manager list if it's visible
         if hasattr(main_window, "jobManagerList"):
@@ -772,5 +772,5 @@ def save_current_job(main_window: "MainWindow"):
     except Exception as e:
         print(f"[ERROR] Failed to save job '{job_name}': {e}")
         common_widget_actions.create_and_show_messagebox(
-            main_window, "Save Job Error", f"Failed to save job:\n{e}", main_window
+            main_window, "Fehler beim Speichern des Jobs", f"Job konnte nicht gespeichert werden:\n{e}", main_window
         )

@@ -36,6 +36,7 @@ from app.ui.widgets.denoiser_layout_data import DENOISER_LAYOUT_DATA
 from app.ui.widgets.swapper_layout_data import SWAPPER_LAYOUT_DATA
 from app.ui.widgets.settings_layout_data import SETTINGS_LAYOUT_DATA
 from app.ui.widgets.face_editor_layout_data import FACE_EDITOR_LAYOUT_DATA
+from app.ui.translations import apply_german_main_window_translation
 from app.helpers.miscellaneous import DFMModelManager, ParametersDict, ThumbnailManager
 from app.helpers.paths import project_path
 from app.helpers.typing_helper import (
@@ -545,9 +546,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 else:
                     denoiser_model_widget.setCurrentText(current_selection_in_control)
             else:
-                denoiser_model_widget.addItem("No UNet models found")
+                denoiser_model_widget.addItem("Keine UNet-Modelle gefunden")
                 self.control["DenoiserUNetModelSelection"] = ""  # No model selected
-                denoiser_model_widget.setCurrentText("No UNet models found")
+                denoiser_model_widget.setCurrentText("Keine UNet-Modelle gefunden")
 
     def _populate_reference_kv_tensors(self):
         kv_tensor_files = []
@@ -582,9 +583,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 else:
                     kv_tensor_widget.setCurrentText(current_selection_in_control)
             else:
-                kv_tensor_widget.addItem("No K/V Tensors found")
+                kv_tensor_widget.addItem("Keine K/V-Tensoren gefunden")
                 self.control["ReferenceKVTensorsSelection"] = ""
-                kv_tensor_widget.setCurrentText("No K/V Tensors found")
+                kv_tensor_widget.setCurrentText("Keine K/V-Tensoren gefunden")
 
     def handle_reference_kv_file_change(self, new_kv_file_name: str):
         with self.models_processor.model_lock:
@@ -641,6 +642,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.initialize_variables()
         self.initialize_widgets()
+        apply_german_main_window_translation(self)
         self.load_last_workspace()
 
     @QtCore.Slot(list)

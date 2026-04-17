@@ -56,14 +56,14 @@ function clearFlash() {
 
 function formatMeta(item) {
   if (item.invalid) {
-    return "Invalid JSON";
+    return "Ungültiges JSON";
   }
   const bits = [];
   if (item.targetFaceCount !== undefined) {
-    bits.push(`${item.targetFaceCount} target faces`);
+    bits.push(`${item.targetFaceCount} Zielgesichter`);
   }
   if (item.markerCount !== undefined) {
-    bits.push(`${item.markerCount} markers`);
+    bits.push(`${item.markerCount} Marker`);
   }
   if (item.modifiedAt) {
     bits.push(new Date(item.modifiedAt).toLocaleString());
@@ -76,7 +76,7 @@ function renderList(target, items, type) {
   if (!items.length) {
     const empty = document.createElement("li");
     empty.className = "item-meta";
-    empty.textContent = "Nothing stored yet.";
+    empty.textContent = "Noch nichts gespeichert.";
     target.appendChild(empty);
     return;
   }
@@ -103,12 +103,12 @@ function renderList(target, items, type) {
 }
 
 function renderStatus(status) {
-  statusBadge.textContent = status.project.browserUi ? "Web Ready" : "Limited";
+  statusBadge.textContent = status.project.browserUi ? "Web bereit" : "Eingeschränkt";
   const cards = [
-    ["Platform", status.runtime.platform],
+    ["Plattform", status.runtime.platform],
     ["Python", status.runtime.pythonVersion],
-    ["FFmpeg", status.binaries.ffmpeg || "not found"],
-    ["FFplay", status.binaries.ffplay || "not found"],
+    ["FFmpeg", status.binaries.ffmpeg || "nicht gefunden"],
+    ["FFplay", status.binaries.ffplay || "nicht gefunden"],
     ["Jobs", String(status.data.jobs)],
     ["Presets", String(status.data.presets)],
   ];
@@ -126,14 +126,14 @@ function renderStatus(status) {
 
 function renderWorkspaceSummary(summary) {
   if (!summary.exists) {
-    workspaceSummary.textContent = "No last workspace has been saved yet.";
+    workspaceSummary.textContent = "Es wurde noch kein letzter Arbeitsbereich gespeichert.";
     return;
   }
   workspaceSummary.innerHTML = `
-    <strong>${summary.targetFaceCount}</strong> target faces<br />
-    <strong>${summary.inputFaceCount}</strong> input faces<br />
-    <strong>${summary.markerCount}</strong> markers<br />
-    Updated ${new Date(summary.modifiedAt).toLocaleString()}
+    <strong>${summary.targetFaceCount}</strong> Zielgesichter<br />
+    <strong>${summary.inputFaceCount}</strong> Quellgesichter<br />
+    <strong>${summary.markerCount}</strong> Marker<br />
+    Aktualisiert: ${new Date(summary.modifiedAt).toLocaleString()}
   `;
 }
 
@@ -172,7 +172,7 @@ async function refreshAll() {
 
 function selectEditor(type, name, data, subtitle) {
   state.selection = { type, name };
-  editorTitle.textContent = `${type}: ${name}`;
+  editorTitle.textContent = `${translateCollectionName(type)}: ${name}`;
   editorSubtitle.textContent = subtitle;
   nameInput.value = name;
   jsonEditor.value = JSON.stringify(data, null, 2);
@@ -192,16 +192,16 @@ async function loadItem(type, name) {
         "workspace",
         "last_workspace",
         payload.data,
-        "This payload is stored at the project root as last_workspace.json."
+        "Dieser Inhalt wird im Projektwurzelverzeichnis als last_workspace.json gespeichert."
       );
       return;
     }
 
     const payload = await request(`/api/${type}/${encodeURIComponent(name)}`);
     const subtitleMap = {
-      jobs: "Queue job definition used by the desktop job manager.",
-      "job-exports": "Standalone job export compatible with the current workspace serializer.",
-      presets: "Preset pair made of parameter JSON plus control JSON.",
+      jobs: "Job-Definition für die Warteschlange der Desktop-Jobverwaltung.",
+      "job-exports": "Eigenständiger Job-Export, kompatibel mit dem aktuellen Workspace-Serializer.",
+      presets: "Preset-Paar aus Parameter-JSON und Steuerungs-JSON.",
     };
     selectEditor(type, name, payload, subtitleMap[type]);
   } catch (error) {
@@ -225,13 +225,13 @@ async function saveCurrentSelection() {
         body: JSON.stringify(payload),
       });
       state.selection.name = "last_workspace";
-      showFlash("Last workspace saved.");
+      showFlash("Letzter Arbeitsbereich gespeichert.");
       await refreshWorkspaceSummary();
       return;
     }
 
     if (!name) {
-      throw new Error("Name must not be empty.");
+      throw new Error("Der Name darf nicht leer sein.");
     }
 
     let body = payload;
@@ -247,7 +247,7 @@ async function saveCurrentSelection() {
       body: JSON.stringify(body),
     });
     state.selection.name = name;
-    showFlash(`${state.selection.type} saved.`);
+    showFlash(`${translateCollectionName(state.selection.type)} gespeichert.`);
     await refreshCollection(state.selection.type);
     if (state.selection.type === "presets") {
       await loadItem("presets", name);
@@ -271,11 +271,11 @@ async function deleteCurrentSelection() {
         method: "DELETE",
       }
     );
-    showFlash(`${currentType} deleted.`);
+    showFlash(`${translateCollectionName(currentType)} gelöscht.`);
     state.selection = null;
-    editorTitle.textContent = "JSON Editor";
+    editorTitle.textContent = "JSON-Editor";
     editorSubtitle.textContent =
-      "Select a job, preset, job export or the last workspace.";
+      "Wähle einen Job, ein Preset, einen Job-Export oder den letzten Arbeitsbereich aus.";
     nameInput.value = "";
     jsonEditor.value = "";
     saveButton.disabled = true;
@@ -285,6 +285,16 @@ async function deleteCurrentSelection() {
   } catch (error) {
     showFlash(error.message, true);
   }
+}
+
+function translateCollectionName(type) {
+  const labels = {
+    jobs: "Job",
+    "job-exports": "Job-Export",
+    presets: "Preset",
+    workspace: "Arbeitsbereich",
+  };
+  return labels[type] || type;
 }
 
 document.getElementById("refreshAllButton").addEventListener("click", refreshAll);

@@ -659,15 +659,15 @@ def record_video(main_window: "MainWindow", checked: bool):
             max_frame = video_processor.max_frame_number
             if max_frame is None or max_frame <= 0:
                 common_widget_actions.create_and_show_messagebox(
-                    main_window, "Error", "Cannot determine video length.", main_window
+                    main_window, "Fehler", "Die Videolänge konnte nicht bestimmt werden.", main_window
                 )
                 main_window.buttonMediaRecord.setChecked(False)
                 return
             if current_frame >= max_frame:
                 common_widget_actions.create_and_show_messagebox(
                     main_window,
-                    "Recording Error",
-                    f"Cannot start recording from frame {current_frame}. Scrubber is at or past the end of the video ({max_frame}).",
+                    "Aufnahmefehler",
+                    f"Die Aufnahme kann nicht bei Frame {current_frame} gestartet werden. Der Positionsregler befindet sich am oder hinter dem Videomende ({max_frame}).",
                     main_window,
                 )
                 main_window.buttonMediaRecord.setChecked(False)

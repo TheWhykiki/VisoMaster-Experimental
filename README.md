@@ -1,5 +1,7 @@
 # VisoMaster-Fusion mod
 
+German documentation: [README.de.md](README.de.md)
+
 ### Visomaster a powerful yet easy-to-use tool for face swapping and editing in images and videos. It utilizes AI to produce natural-looking results with minimal effort, making it ideal for both casual users and professionals.
 
 This version integrates major features developed by the community to create a single, enhanced application. It is built upon the incredible work of the original VisoMaster developers, **@argenspin** and **@Alucard24**.

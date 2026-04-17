@@ -1124,17 +1124,20 @@ class CreateEmbeddingDialog(QtWidgets.QDialog):
         self.main_window = main_window
         self.embedding_name = ""
         self.merge_type = ""
-        self.setWindowTitle("Create Embedding")
+        self.setWindowTitle("Einbettung erstellen")
         self.setWindowIcon(QtGui.QIcon(":/media/media/visomaster_small.png"))
 
         # Create widgets
         self.embed_name_edit = QtWidgets.QLineEdit(self)
-        self.embed_name_edit.setPlaceholderText("Enter embedding name")
+        self.embed_name_edit.setPlaceholderText("Name der Einbettung eingeben")
 
         self.merge_type_selection = QtWidgets.QComboBox(self)
-        self.merge_type_selection.addItems(["Mean", "Median"])
+        self.merge_type_selection.addItems(["Mittelwert", "Median"])
+        current_merge_method = main_window.control["EmbMergeMethodSelection"]
+        if current_merge_method == "Mean":
+            current_merge_method = "Mittelwert"
         self.merge_type_selection.setCurrentText(
-            main_window.control["EmbMergeMethodSelection"]
+            current_merge_method
         )
 
         # Create button box
@@ -1145,9 +1148,9 @@ class CreateEmbeddingDialog(QtWidgets.QDialog):
 
         # Create layout and add widgets
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(QtWidgets.QLabel("Embedding Name:"))
+        layout.addWidget(QtWidgets.QLabel("Name der Einbettung:"))
         layout.addWidget(self.embed_name_edit)
-        layout.addWidget(QtWidgets.QLabel("Merge Type:"))
+        layout.addWidget(QtWidgets.QLabel("Zusammenführung:"))
         layout.addWidget(self.merge_type_selection)
         layout.addWidget(self.buttonBox)
 
@@ -1161,8 +1164,8 @@ class CreateEmbeddingDialog(QtWidgets.QDialog):
         if self.embedding_name == "":
             common_widget_actions.create_and_show_messagebox(
                 self.main_window,
-                "Empty Embedding Name!",
-                "Embedding Name cannot be empty!",
+                "Leerer Einbettungsname",
+                "Der Name der Einbettung darf nicht leer sein.",
                 self,
             )
         else:
@@ -1178,7 +1181,7 @@ class CreateEmbeddingDialog(QtWidgets.QDialog):
             # Calcola l'embedding unito per ciascun embedding_swap_model
             final_embedding_store = {}
             for swap_model, embeddings in merged_embedding_store.items():
-                if self.merge_type == "Mean":
+                if self.merge_type == "Mittelwert":
                     final_embedding_store[swap_model] = np.mean(embeddings, axis=0)
                 elif self.merge_type == "Median":
                     final_embedding_store[swap_model] = np.median(embeddings, axis=0)
@@ -1195,10 +1198,10 @@ class CreateEmbeddingDialog(QtWidgets.QDialog):
 
 class LoadingDialog(QtWidgets.QDialog):
     def __init__(
-        self, message="Loading Models, please wait...\nDon't panic if it looks stuck!"
+        self, message="Modelle werden geladen, bitte warten...\nNicht erschrecken, wenn es kurz hängen zu bleiben scheint."
     ):
         super().__init__()
-        self.setWindowTitle("Loading Models")
+        self.setWindowTitle("Modelle laden")
         self.setWindowIcon(QtGui.QIcon(":/media/media/visomaster_small.png"))
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setModal(True)  # Block interaction with other windows
@@ -1248,7 +1251,7 @@ class LoadLastWorkspaceDialog(QtWidgets.QDialog):
     ):
         super().__init__()
         self.main_window = main_window
-        self.setWindowTitle("Load Last Workspace")
+        self.setWindowTitle("Letzten Arbeitsbereich laden")
         self.setWindowIcon(QtGui.QIcon(":/media/media/visomaster_small.png"))
 
         # Create button box
@@ -1260,7 +1263,7 @@ class LoadLastWorkspaceDialog(QtWidgets.QDialog):
 
         # Create layout and add widgets
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(QtWidgets.QLabel("Do you want to load your last workspace?"))
+        layout.addWidget(QtWidgets.QLabel("Möchtest du deinen letzten Arbeitsbereich laden?"))
         layout.addWidget(self.buttonBox)
 
         # Set dialog layout
@@ -1276,14 +1279,14 @@ class LoadLastWorkspaceDialog(QtWidgets.QDialog):
 class JobLoadingDialog(QtWidgets.QDialog):
     def __init__(self, total_steps, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Loading Job Data...")
+        self.setWindowTitle("Job-Daten werden geladen...")
         self.setWindowIcon(QtGui.QIcon(":/media/media/visomaster_small.png"))
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setModal(True)
         self.setFixedSize(300, 120)
 
         self.layout = QtWidgets.QVBoxLayout()
-        self.label = QtWidgets.QLabel("Loading job data...")
+        self.label = QtWidgets.QLabel("Job-Daten werden geladen...")
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, total_steps)
@@ -1306,22 +1309,22 @@ class JobLoadingDialog(QtWidgets.QDialog):
 class SaveJobDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Save Job")
+        self.setWindowTitle("Job speichern")
         self.setWindowIcon(QtGui.QIcon(":/media/media/visomaster_small.png"))
 
         # Widgets
-        self.job_name_label = QtWidgets.QLabel("Job Name:")
+        self.job_name_label = QtWidgets.QLabel("Job-Name:")
         self.job_name_edit = QtWidgets.QLineEdit(self)
-        self.job_name_edit.setPlaceholderText("Enter job name")
+        self.job_name_edit.setPlaceholderText("Job-Namen eingeben")
 
         self.set_output_name_checkbox = QtWidgets.QCheckBox(
-            "Use job name for output file name", self
+            "Job-Namen auch als Ausgabedatei verwenden", self
         )
         self.set_output_name_checkbox.setChecked(True)
 
-        self.output_name_label = QtWidgets.QLabel("Output File Name:")
+        self.output_name_label = QtWidgets.QLabel("Name der Ausgabedatei:")
         self.output_name_edit = QtWidgets.QLineEdit(self)
-        self.output_name_edit.setPlaceholderText("Leave blank for default")
+        self.output_name_edit.setPlaceholderText("Leer lassen für Standardnamen")
 
         # Button box
         QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
