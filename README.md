@@ -137,6 +137,7 @@ python download_models.py
 
 Once everything is set up, start the application:
 - by opening the **Start.bat** file (for Windows)
+- `Start.bat` now tries to create the `visomaster` conda environment automatically and installs the packages from `requirements_cu129.txt` if they are still missing
 or
 Activate conda or uv environment in a terminal in the visomaster directory:
 
@@ -162,6 +163,7 @@ python main_web.py
 
 Or on Windows:
 - open `Start_Web.bat`
+- this starter also creates the `visomaster` conda environment and installs `requirements_cu129.txt` automatically when needed
 
 Then open:
 
@@ -179,6 +181,7 @@ python main_web.py --host 0.0.0.0 --port 8000
 
 Or on Windows:
 - open `Start_Web_Network.bat`
+- this starter uses the same automatic Windows bootstrap as `Start.bat`
 
 Or in portable mode:
 - run `Start_Portable.bat web-network`

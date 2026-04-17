@@ -5,35 +5,48 @@ cd /d "%~dp0"
 set "EXIT_CODE=0"
 set "CONDA_BAT="
 set "ENV_PYTHON="
+set "ENV_NAME=visomaster"
+set "REQUIREMENTS_FILE=requirements_cu129.txt"
+
+if not exist "%REQUIREMENTS_FILE%" (
+    echo ERROR: Requirements file "%REQUIREMENTS_FILE%" was not found.
+    set "EXIT_CODE=1"
+    goto :HandleError
+)
 
 IF EXIST ".venv\Scripts\python.exe" (
+    call :EnsurePythonPackages ".venv\Scripts\python.exe" ".venv" path
+    IF NOT "!EXIT_CODE!"=="0" goto :HandleError
     echo Starting VisoMaster Network Web Console on 0.0.0.0:8000...
     ".venv\Scripts\python.exe" main_web.py --host 0.0.0.0 --port 8000
     set "EXIT_CODE=!ERRORLEVEL!"
 ) ELSE (
+    call :FindCondaBat
+    IF DEFINED CONDA_BAT (
+        call :EnsureCondaEnv
+        IF NOT "!EXIT_CODE!"=="0" goto :HandleError
+        call :EnsureCondaPackages
+        IF NOT "!EXIT_CODE!"=="0" goto :HandleError
+        echo Starting VisoMaster Network Web Console on 0.0.0.0:8000...
+        call "%CONDA_BAT%" run -n "%ENV_NAME%" python main_web.py --host 0.0.0.0 --port 8000
+        set "EXIT_CODE=!ERRORLEVEL!"
+        goto :AfterRun
+    )
+
     call :FindEnvPython
     IF DEFINED ENV_PYTHON (
-        echo .venv not found, launching network web console with detected visomaster environment...
+        call :EnsurePythonPackages "%ENV_PYTHON%" "visomaster" path
+        IF NOT "!EXIT_CODE!"=="0" goto :HandleError
+        echo Conda launcher not found, launching network web console with detected visomaster environment...
         "%ENV_PYTHON%" main_web.py --host 0.0.0.0 --port 8000
         set "EXIT_CODE=!ERRORLEVEL!"
         goto :AfterRun
     )
 
-    call :FindCondaBat
-    IF DEFINED CONDA_BAT (
-        echo .venv not found, trying conda environment "visomaster"...
-        call "%CONDA_BAT%" activate visomaster
-        IF NOT ERRORLEVEL 1 (
-            echo Starting VisoMaster Network Web Console on 0.0.0.0:8000...
-            python main_web.py --host 0.0.0.0 --port 8000
-            set "EXIT_CODE=!ERRORLEVEL!"
-            goto :AfterRun
-        )
-        echo WARNING: Conda was found, but the environment "visomaster" could not be activated.
-    )
-
     py -3 --version >nul 2>&1
     IF NOT ERRORLEVEL 1 (
+        call :EnsurePythonPackages "py -3" "Windows Python launcher" cmd
+        IF NOT "!EXIT_CODE!"=="0" goto :HandleError
         echo .venv not found, starting network mode with Windows Python launcher...
         py -3 main_web.py --host 0.0.0.0 --port 8000
         set "EXIT_CODE=!ERRORLEVEL!"
@@ -42,6 +55,8 @@ IF EXIST ".venv\Scripts\python.exe" (
 
     python --version >nul 2>&1
     IF NOT ERRORLEVEL 1 (
+        call :EnsurePythonPackages "python" "system Python" cmd
+        IF NOT "!EXIT_CODE!"=="0" goto :HandleError
         echo .venv not found, starting network mode with system Python...
         python main_web.py --host 0.0.0.0 --port 8000
         set "EXIT_CODE=!ERRORLEVEL!"
@@ -66,6 +81,108 @@ echo The console will stay open so you can read the error message above.
 pause
 endlocal
 exit /b %EXIT_CODE%
+
+:EnsureCondaEnv
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python --version >nul 2>&1
+IF NOT ERRORLEVEL 1 (
+    set "EXIT_CODE=0"
+    goto :eof
+)
+
+echo Conda environment "%ENV_NAME%" not found. Creating it now...
+call "%CONDA_BAT%" create -n "%ENV_NAME%" python=3.11 -y
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to create conda environment "%ENV_NAME%".
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+set "EXIT_CODE=0"
+goto :eof
+
+:EnsureCondaPackages
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+IF NOT ERRORLEVEL 1 (
+    set "EXIT_CODE=0"
+    goto :eof
+)
+
+echo Installing or updating packages in conda environment "%ENV_NAME%"...
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python -m ensurepip --upgrade >nul 2>&1
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python -m pip install uv
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to install uv into conda environment "%ENV_NAME%".
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python -m uv pip install -r "%REQUIREMENTS_FILE%"
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to install project requirements into conda environment "%ENV_NAME%".
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+set "EXIT_CODE=0"
+goto :eof
+
+:EnsurePythonPackages
+set "TARGET_PY=%~1"
+set "TARGET_NAME=%~2"
+set "TARGET_KIND=%~3"
+
+IF /I "%TARGET_KIND%"=="path" goto :EnsurePythonPackagesPath
+
+%TARGET_PY% -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+IF NOT ERRORLEVEL 1 (
+    set "EXIT_CODE=0"
+    goto :eof
+)
+
+echo Installing or updating packages in %TARGET_NAME%...
+%TARGET_PY% -m ensurepip --upgrade >nul 2>&1
+%TARGET_PY% -m pip install uv
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to install uv into %TARGET_NAME%.
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+%TARGET_PY% -m uv pip install -r "%REQUIREMENTS_FILE%"
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to install project requirements into %TARGET_NAME%.
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+set "EXIT_CODE=0"
+goto :eof
+
+:EnsurePythonPackagesPath
+"%TARGET_PY%" -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+IF NOT ERRORLEVEL 1 (
+    set "EXIT_CODE=0"
+    goto :eof
+)
+
+echo Installing or updating packages in %TARGET_NAME%...
+"%TARGET_PY%" -m ensurepip --upgrade >nul 2>&1
+"%TARGET_PY%" -m pip install uv
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to install uv into %TARGET_NAME%.
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+"%TARGET_PY%" -m uv pip install -r "%REQUIREMENTS_FILE%"
+IF ERRORLEVEL 1 (
+    echo ERROR: Failed to install project requirements into %TARGET_NAME%.
+    set "EXIT_CODE=1"
+    goto :eof
+)
+
+set "EXIT_CODE=0"
+goto :eof
 
 :FindEnvPython
 for %%I in (
