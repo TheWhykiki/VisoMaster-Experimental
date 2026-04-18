@@ -4,14 +4,14 @@ Diese Dokumentation beschreibt die aktuelle browserfaehige Verwaltungsoberflaech
 
 ## Einstieg
 
-Die Web-Konsole ist eine Verwaltungsoberflaeche fuer Projektdateien. Die eigentliche Medienverarbeitung laeuft weiterhin primaer ueber die Desktop-Anwendung.
+Die Web-Konsole ist eine Verwaltungsoberflaeche fuer Projektdateien und kann gespeicherte Jobs inzwischen auch direkt ueber einen versteckten Runner starten. Fuer den aktuellen Remote-Meilenstein ist damit der Zugriff vom Mac oder einem anderen Browser-Client auf einen Windows- oder Linux-GPU-Host vollstaendig abgedeckt. Die eigentliche Medienverarbeitung laeuft dabei weiterhin ueber dieselbe Desktop-Pipeline wie in der nativen Anwendung.
 
 Typischer Ablauf:
 
-1. `Start_Web.bat` oder `Start_Web_Network.bat` starten
-2. Web-Konsole im Browser oeffnen
-3. Bereich auswaehlen: Status, Jobs, Presets, Embeddings oder Arbeitsbereich
-4. Eintrag anklicken, JSON pruefen und bei Bedarf speichern
+1. auf dem Windows- oder Linux-Host `Start_Web_Network.bat` oder `./Start_Web_Network.sh` starten
+2. die ausgegebene URL auf dem Mac oder einem anderen Client im Browser oeffnen
+3. Bereich auswaehlen: Status, Jobs, Browser-Verarbeitung, Presets, Embeddings oder Arbeitsbereich
+4. Eintrag anklicken, JSON pruefen und bei Bedarf speichern oder den gewaehlten Job direkt starten
 
 ## Hilfe direkt in der Oberflaeche
 
@@ -44,7 +44,38 @@ Jobs sind gespeicherte Arbeitsauftraege fuer die Desktop-Verarbeitung. Sie entha
 - Marker
 - weitere Verarbeitungseinstellungen
 
-In der Web-Konsole kannst du Jobs laden, im JSON-Editor pruefen und wieder speichern.
+In der Web-Konsole kannst du Jobs laden, im JSON-Editor pruefen, wieder speichern und jetzt auch direkt zur Browser-Verarbeitung uebergeben.
+
+### Browser-Verarbeitung
+
+Die Browser-Verarbeitung nutzt bewusst keinen separaten Mini-Algorithmus, sondern startet einen gespeicherten Job oder einen Direkt-Upload ueber die bestehende Desktop-Pipeline.
+
+So ist der Ablauf gedacht:
+
+1. gespeicherten Job in der Job-Liste oeffnen
+2. im Bereich `Browser-Verarbeitung` auf `Gewaehlten Job starten` klicken
+3. Status, Fortschritt und Runner-Log beobachten
+4. nach erfolgreichem Lauf den ausgegebenen Dateipfad oder Download-Link nutzen
+
+Fuer den Schnellstart ohne gespeicherten Job:
+
+1. Zielmedium hochladen
+2. mindestens ein Quellgesicht hochladen
+3. optional einen Erkennungsframe fuer Videos setzen
+4. `Direkt-Upload starten` klicken
+
+Wichtig:
+
+- Der Job braucht einen gesetzten `OutputMediaFolder`.
+- Modelle, FFmpeg und Runtime muessen auf dem Host verfuegbar sein.
+- Beim Direkt-Upload wird aktuell das erste erkannte Quellgesicht auf alle erkannten Zielgesichter angewendet.
+- Diese Vereinfachung gehoert bewusst zum Schnellworkflow und gilt im aktuellen Hybrid-Meilenstein als vollstaendige Direktlauf-Variante.
+
+Wichtig fuer dein Zielbild:
+
+- Der **Mac ist Browser-Client**.
+- Der **Windows- oder Linux-Rechner ist GPU-Host**.
+- Genau dieser Host muss die Modelle, FFmpeg und die eigentliche Runtime bereitstellen.
 
 ### Job-Exporte
 

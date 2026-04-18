@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import cgi
 import json
 import mimetypes
 import socket
@@ -10,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from app.services import storage, system_info
+from app.services import browser_workflow, storage, system_info, web_processing
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -36,6 +37,22 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/status":
             self._write_json(HTTPStatus.OK, system_info.system_status())
+            return
+        if path == "/api/processing/status":
+            self._write_json(HTTPStatus.OK, web_processing.current_status())
+            return
+        if path == "/api/browser-workflow":
+            self._write_json(HTTPStatus.OK, browser_workflow.current_state())
+            return
+        if path == "/api/processing/output":
+            output_path = web_processing.current_output_path()
+            if output_path is None:
+                self._write_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "Es liegt noch keine fertige Ausgabedatei vor."},
+                )
+                return
+            self._serve_file(output_path)
             return
         if path == "/api/jobs":
             self._write_json(HTTPStatus.OK, {"items": storage.list_jobs()})
@@ -82,6 +99,71 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
+
+        if path == "/api/processing/stop":
+            try:
+                payload = web_processing.stop_job()
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(HTTPStatus.OK, payload)
+            return
+
+        if path.startswith("/api/processing/jobs/") and path.endswith("/start"):
+            raw_name = path.removeprefix("/api/processing/jobs/").removesuffix("/start")
+            job_name = unquote(raw_name.rstrip("/"))
+            try:
+                payload = web_processing.start_job(job_name)
+            except FileNotFoundError:
+                self._write_json(HTTPStatus.NOT_FOUND, {"error": "Job nicht gefunden."})
+                return
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(HTTPStatus.ACCEPTED, payload)
+            return
+
+        if path == "/api/browser-workflow/reset":
+            payload = browser_workflow.reset()
+            self._write_json(HTTPStatus.OK, payload)
+            return
+
+        if path == "/api/browser-workflow/run":
+            payload = self._read_request_json()
+            if payload is None:
+                return
+            try:
+                detection_frame = int(payload.get("detectionFrame", 0))
+                response = web_processing.start_upload_run(detection_frame=detection_frame)
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(HTTPStatus.ACCEPTED, response)
+            return
+
+        if path == "/api/browser-workflow/target":
+            try:
+                uploads = self._read_request_files()
+                if len(uploads) != 1:
+                    raise ValueError("Bitte genau ein Zielmedium hochladen.")
+                filename, content = uploads[0]
+                response = browser_workflow.save_target_upload(filename, content)
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(HTTPStatus.OK, response)
+            return
+
+        if path == "/api/browser-workflow/sources":
+            try:
+                uploads = self._read_request_files()
+                response = browser_workflow.save_source_uploads(uploads)
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(HTTPStatus.OK, response)
+            return
+
         payload = self._read_request_json()
         if payload is None:
             return
@@ -209,16 +291,61 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             raise ValueError(error_message)
         return payload
 
+    def _read_request_files(self) -> list[tuple[str, bytes]]:
+        content_type = self.headers.get("Content-Type", "")
+        if not content_type.startswith("multipart/form-data"):
+            raise ValueError("Datei-Uploads muessen als multipart/form-data gesendet werden.")
+
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={
+                "REQUEST_METHOD": "POST",
+                "CONTENT_TYPE": content_type,
+            },
+        )
+
+        fields = []
+        if "files" in form:
+            candidate = form["files"]
+            if isinstance(candidate, list):
+                fields.extend(candidate)
+            else:
+                fields.append(candidate)
+        if "file" in form:
+            candidate = form["file"]
+            if isinstance(candidate, list):
+                fields.extend(candidate)
+            else:
+                fields.append(candidate)
+
+        uploads: list[tuple[str, bytes]] = []
+        for field in fields:
+            if not getattr(field, "filename", None):
+                continue
+            uploads.append((field.filename, field.file.read()))
+
+        if not uploads:
+            raise ValueError("Es wurden keine Dateien uebertragen.")
+        return uploads
+
     def _serve_static(self, relative_path: str) -> None:
         target = (STATIC_DIR / relative_path).resolve()
         if not str(target).startswith(str(STATIC_DIR.resolve())) or not target.is_file():
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "Statische Datei nicht gefunden."})
             return
 
+        self._serve_file(target)
+
+    def _serve_file(self, target: Path) -> None:
         mime_type, _ = mimetypes.guess_type(target.name)
         self.send_response(HTTPStatus.OK)
         self._send_common_headers()
         self.send_header("Content-Type", mime_type or "application/octet-stream")
+        self.send_header("Content-Length", str(target.stat().st_size))
+        self.send_header(
+            "Content-Disposition", f'inline; filename="{target.name}"'
+        )
         self.end_headers()
         with target.open("rb") as handle:
             self.wfile.write(handle.read())

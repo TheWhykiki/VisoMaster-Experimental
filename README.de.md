@@ -10,6 +10,7 @@ Wichtige Punkte:
 
 - Die **Desktop-GUI** bleibt die vollständige Hauptanwendung für die eigentliche Verarbeitung.
 - Die **Web-Konsole** ist ein zusätzlicher Zugang über den Browser und ersetzt die Desktop-GUI nicht.
+- Das empfohlene Setup ist jetzt: **Mac als Browser-Client**, **Windows oder Linux als GPU-Host**.
 - Unter Windows erstellen die Startskripte bei Bedarf jetzt automatisch ein `visomaster`-Conda-Environment und installieren die Pakete aus `requirements_cu129.txt`.
 
 ## Hauptfunktionen
@@ -46,6 +47,22 @@ Dieses Repository unterstützt parallel zwei Modi:
    Die vollständige lokale `PySide6`-Anwendung für Face-Swap, Vorschau, Aufnahme und Bearbeitung.
 2. **Web-Konsole**
    Eine zusätzliche Browser-Oberfläche für Status, Jobs, Presets und Arbeitsbereichsdaten.
+
+## Empfohlenes Remote-Setup
+
+Wenn dein Mac nur der Bedienplatz sein soll und die bessere GPU auf einem anderen Rechner steckt, ist der sinnvolle Weg:
+
+1. VisoMaster auf einem **Windows- oder Linux-Rechner mit GPU** starten
+2. dort die **Web-Konsole im Netzwerkmodus** starten
+3. die ausgegebene URL auf dem **Mac im Browser** öffnen
+4. Jobs, Uploads und Läufe vollständig über die Web-Konsole steuern
+
+Empfohlene Host-Starter:
+
+- Windows: `Start_Web_Network.bat`
+- Linux: `./Start_Web_Network.sh`
+
+Der Mac braucht in diesem Modell keine lokale VisoMaster-GPU-Runtime. Er ist nur Browser-Client.
 
 ## Schneller Start unter Windows
 
@@ -86,6 +103,15 @@ Start_Web_Network.bat
 ```
 
 Danach ist die Konsole über die im Terminal ausgegebene LAN-Adresse erreichbar. Unter Windows musst du Python gegebenenfalls in der Firewall freigeben.
+
+### Web-Konsole auf Linux im Netzwerk
+
+```sh
+chmod +x Start_Web_Network.sh
+./Start_Web_Network.sh
+```
+
+Danach öffnest du die ausgegebene URL auf dem Mac oder einem anderen Client im Browser.
 
 ## Portable Variante
 
@@ -129,18 +155,21 @@ python main.py
 
 ## Browser-Modus
 
-Die Web-Konsole ist derzeit vor allem für Verwaltung und Einsicht gedacht. Sie kann bereits:
+Die Web-Konsole ist jetzt mehr als reine Verwaltung. Sie kann bereits:
 
 - Systemstatus anzeigen
 - Jobs anzeigen, laden, speichern und löschen
+- gespeicherte Jobs direkt im Browser-Modus starten und ihren Status verfolgen
+- Zielmedium und Quellgesicht direkt im Browser hochladen und als Schnelllauf starten
 - Job-Exporte anzeigen, laden, speichern und löschen
 - Presets lesen, schreiben und löschen
 - den letzten Arbeitsbereich lesen und speichern
 
 Wichtig:
 
-- Die eigentliche GPU-Verarbeitung läuft weiterhin primär über die Desktop-Architektur.
-- Die Web-Konsole ist also aktuell eine sinnvolle Ergänzung, aber noch kein vollständiger Ersatz für die native Anwendung.
+- Die Browser-Verarbeitung startet gespeicherte Jobs und Direkt-Uploads über die bestehende Desktop-Pipeline im Hintergrund.
+- Damit ist der aktuelle Remote-Meilenstein vollständig: URL-Zugang vom Client, Datenpflege und Laufbeobachtung sind in der Web-Konsole zusammengeführt.
+- Eine später mögliche, vollständig UI-unabhängige Service-Architektur bleibt bewusst ein eigener Zukunftsschritt und ist nicht mehr Teil dieses Meilensteins.
 
 ## Dokumentation und interaktive Hilfe
 
@@ -148,7 +177,8 @@ Die Web-Konsole enthält jetzt eine integrierte Hilfe, damit du ohne langes Such
 
 - `Schnellhilfe` im Kopfbereich öffnet eine zentrale Dokumentationsfläche direkt in der Oberfläche
 - Fragezeichen-Schaltflächen neben den Bereichen zeigen per Tooltip eine Kurzinfo und springen per Klick zur passenden Erklärung
-- die Hilfe deckt aktuell Systemstatus, Jobs, Job-Exporte, Presets, Embeddings, den letzten Arbeitsbereich, den JSON-Editor und den Embedding-Builder ab
+- die Hilfe deckt aktuell Systemstatus, Jobs, Browser-Verarbeitung, Job-Exporte, Presets, Embeddings, den letzten Arbeitsbereich, den JSON-Editor und den Embedding-Builder ab
+- der Status trennt jetzt sauber zwischen Projekt-Meilenstein, Browser-Client und GPU-Host-Runtime
 
 Zusätzliche Projektdokumentation:
 

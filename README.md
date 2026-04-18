@@ -76,6 +76,22 @@ This repository now supports two separate access modes side by side:
 
 The desktop GUI remains the primary processing application. The web mode is an additional network-accessible entrypoint and does not replace the original GUI.
 
+## Recommended Remote Setup
+
+If you want to use VisoMaster from a Mac while keeping the stronger GPU on another machine, the recommended setup is:
+
+1. run VisoMaster on a **Windows or Linux GPU host**
+2. start the **network web console** on that host
+3. open the printed URL from the **Mac browser**
+4. manage jobs, uploads and runs entirely through the web console
+
+Recommended host starters:
+
+- Windows: `Start_Web_Network.bat`
+- Linux: `./Start_Web_Network.sh`
+
+In this model the Mac is only a browser client and does not need to be the processing host.
+
 ### **Portable version**
 
 Download only the `Start_Portable.bat` file from this repo (you don't need to clone the whole repo) from link below and put it in a new directory where you want to run VisoMaster from. Then just execute the bat file to run VisoMaster. Portable dependencies will be installed on the first run to the `portable-files` directory.
@@ -156,7 +172,7 @@ python main.py
 
 **5.2 Run the Browser Console**
 
-The project now ships with a first browser-facing control layer for jobs, presets and workspace state.
+The project now ships with a browser-facing control layer for jobs, presets and workspace state, and it can start saved jobs and direct-upload runs through the existing desktop processing pipeline.
 
 ```sh
 # Start the local web console
@@ -185,6 +201,13 @@ Or on Windows:
 - open `Start_Web_Network.bat`
 - this starter uses the same automatic Windows bootstrap as `Start.bat`
 
+Or on Linux:
+
+```sh
+chmod +x Start_Web_Network.sh
+./Start_Web_Network.sh
+```
+
 Or in portable mode:
 - run `Start_Portable.bat web-network`
 
@@ -200,9 +223,9 @@ git pull
 
 ## Current Architecture
 
-This project is currently a local desktop application built around `PySide6`, OpenCV, Torch/ONNX/TensorRT, FFmpeg and optional virtual-camera streaming. It now also includes a separate browser-accessible control layer, but the full processing pipeline is still primarily desktop-driven.
+This project is currently a local desktop application built around `PySide6`, OpenCV, Torch/ONNX/TensorRT, FFmpeg and optional virtual-camera streaming. It now also includes a separate browser-accessible control layer, and the current remote milestone is complete: browser access over URL, job launching, direct-upload quick runs and processing observation are integrated on top of the desktop pipeline for Windows/Linux GPU hosts.
 
-If you want to make it callable from a browser in the future, the recommended path is:
+If you want to evolve this further into a fully browser-native architecture in the future, the recommended path is:
 - extract the processing pipeline into a UI-independent service layer
 - add a small API backend for jobs, presets, uploads and outputs
 - build a separate web frontend on top of that API

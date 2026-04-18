@@ -2,12 +2,15 @@ const state = {
   selection: null,
   helpTopic: "overview",
   helpCollapsed: false,
+  processingPollHandle: null,
+  browserWorkflow: null,
   collections: {
     jobs: [],
     "job-exports": [],
     presets: [],
     embeddings: [],
   },
+  processing: null,
   embeddingDraft: {
     fileName: "",
     name: "",
@@ -22,6 +25,13 @@ const embeddingsList = document.getElementById("embeddingsList");
 const workspaceSummary = document.getElementById("workspaceSummary");
 const statusCards = document.getElementById("statusCards");
 const statusBadge = document.getElementById("statusBadge");
+const statusSummaryEyebrow = document.getElementById("statusSummaryEyebrow");
+const statusSummaryTitle = document.getElementById("statusSummaryTitle");
+const statusSummaryText = document.getElementById("statusSummaryText");
+const statusSummaryNote = document.getElementById("statusSummaryNote");
+const statusOverallPercent = document.getElementById("statusOverallPercent");
+const statusOverallLabel = document.getElementById("statusOverallLabel");
+const statusAreas = document.getElementById("statusAreas");
 const nameInput = document.getElementById("nameInput");
 const jsonEditor = document.getElementById("jsonEditor");
 const editorTitle = document.getElementById("editorTitle");
@@ -29,6 +39,25 @@ const editorSubtitle = document.getElementById("editorSubtitle");
 const saveButton = document.getElementById("saveButton");
 const deleteButton = document.getElementById("deleteButton");
 const flashMessage = document.getElementById("flashMessage");
+const processingBadge = document.getElementById("processingBadge");
+const processingMessage = document.getElementById("processingMessage");
+const processingMeta = document.getElementById("processingMeta");
+const processingSelection = document.getElementById("processingSelection");
+const processingOutput = document.getElementById("processingOutput");
+const processingLog = document.getElementById("processingLog");
+const processingRefreshButton = document.getElementById("processingRefreshButton");
+const processingStartButton = document.getElementById("processingStartButton");
+const processingStopButton = document.getElementById("processingStopButton");
+const processingProgress = document.getElementById("processingProgress");
+const processingProgressValue = document.getElementById("processingProgressValue");
+const workflowSummary = document.getElementById("workflowSummary");
+const workflowResetButton = document.getElementById("workflowResetButton");
+const workflowRunButton = document.getElementById("workflowRunButton");
+const targetUploadInput = document.getElementById("targetUploadInput");
+const sourceUploadInput = document.getElementById("sourceUploadInput");
+const uploadTargetButton = document.getElementById("uploadTargetButton");
+const uploadSourcesButton = document.getElementById("uploadSourcesButton");
+const detectionFrameInput = document.getElementById("detectionFrameInput");
 
 const builderFileName = document.getElementById("builderFileName");
 const builderEmbeddingName = document.getElementById("builderEmbeddingName");
@@ -57,34 +86,37 @@ const HELP_TOPICS = {
     eyebrow: "Schnellstart",
     title: "So findest du dich schnell zurecht",
     summary:
-      "Die Web-Konsole ist fuer Verwaltung und Kontrolle gedacht. Mit wenigen Klicks springst du von der Uebersicht direkt in Jobs, Presets, Embeddings oder den letzten Arbeitsbereich.",
+      "Die Web-Konsole ist fuer den Remote-Betrieb gedacht: Browser auf dem Mac oder einem anderen Client, GPU-Host auf Windows oder Linux. Mit wenigen Klicks springst du von der Uebersicht direkt in Jobs, Presets, Embeddings, den letzten Arbeitsbereich oder einen laufenden Browser-Job.",
     steps: [
-      "Pruefe zuerst den Systemstatus, damit du sofort siehst, ob Runtime, FFmpeg und Projektdaten verfuegbar sind.",
+      "Starte VisoMaster auf dem Windows- oder Linux-Host im Netzwerkmodus und oeffne danach die ausgegebene URL auf dem Mac im Browser.",
+      "Pruefe zuerst den Systemstatus, damit du sofort siehst, ob Host-Runtime, Netzwerkmodus und Projektdaten verfuegbar sind.",
       "Oeffne danach in den Projektdaten den Bereich, den du bearbeiten willst, und klicke auf den gewuenschten Eintrag.",
-      "Nutze anschliessend den JSON-Editor oder den Embedding-Builder, um Daten sicher zu pruefen und zu speichern.",
+      "Nutze anschliessend den JSON-Editor oder den Embedding-Builder, um Daten sicher zu pruefen und zu speichern oder direkt einen Lauf zu starten.",
     ],
     notes: [
-      "Die Web-Konsole verwaltet Dateien, ersetzt aber die Desktop-Verarbeitung noch nicht vollstaendig.",
+      "Der Mac dient dabei idealerweise nur als Browser-Client und nicht als GPU-Verarbeitungshost.",
+      "Die Web-Konsole kann gespeicherte Jobs jetzt direkt ueber die bestehende Desktop-Pipeline auf dem Remote-Host starten.",
       "Die Fragezeichen neben den Bereichen fuehren immer direkt zur passenden Erlaeuterung.",
       "Mit dem Button 'Schnellhilfe' oeffnest du diese Dokumentation jederzeit erneut.",
     ],
     context:
-      "Besonders praktisch ist die Konsole fuer schnelle Kontrollen, Datenpflege und den Austausch von Projektdateien.",
+      "Besonders praktisch ist die Konsole fuer einen Mac-Client, der nur ueber URL auf einen staerkeren Windows- oder Linux-Rechner zugreift.",
   },
   status: {
     eyebrow: "Status",
     title: "Systemstatus lesen",
     summary:
-      "Hier siehst du auf einen Blick, ob die Browser-Oberflaeche laeuft, welche Laufzeit aktiv ist und wie viele Projektdateien gefunden wurden.",
+      "Hier siehst du auf einen Blick, wie weit der aktuelle Remote-Meilenstein ausgebaut ist, welche Host-Runtime aktiv ist und wie der Browser-Client gedacht ist.",
     steps: [
-      "Klicke auf 'Aktualisieren', um Runtime-Informationen und Dateizaehler neu einzulesen.",
-      "Pruefe die Karten fuer Plattform, Python, FFmpeg und FFplay.",
+      "Klicke auf 'Aktualisieren', um Remote-Bewertung, Deployment-Profil, Runtime-Informationen und Dateizaehler neu einzulesen.",
+      "Pruefe zuerst die 100%-Karten pro Bereich und danach das Deployment- und Runtime-Profil mit Host- und Client-Rollen.",
       "Nutze die Zaehler fuer Jobs, Presets und Embeddings als schnellen Gesundheitscheck deines Projekts.",
     ],
     notes: [
-      "Fehlende FFmpeg-Eintraege deuten meist auf eine unvollstaendige lokale Installation hin.",
+      "Die Prozentwerte beziehen sich auf den aktuellen Remote-Meilenstein des Projekts und nicht auf spaetere, bewusst getrennte Zukunftsausbaustufen.",
+      "Die Runtime-Karten unterscheiden bewusst zwischen Browser-Client-Kontext und der starter-verwalteten Host-Runtime.",
       "Wenn Zaehler auf null stehen, fehlen oft Dateien oder das Projekt wurde noch nicht befuellt.",
-      "Der Badge zeigt an, ob die Browser-Funktionen in der aktuellen Umgebung bereit sind.",
+      "Ein Mac darf hier bewusst nur Client sein; der GPU-Host soll auf Windows oder Linux laufen.",
     ],
     context:
       "Der Statusbereich eignet sich als erster Stopp vor jeder Bearbeitung oder Fehlersuche.",
@@ -111,11 +143,11 @@ const HELP_TOPICS = {
     eyebrow: "Jobs",
     title: "Jobs gezielt pruefen",
     summary:
-      "Jobs beschreiben Arbeitsauftraege fuer die Desktop-Verarbeitung, zum Beispiel mit Zielmedien, Gesichtern, Markern und weiteren Einstellungen.",
+      "Jobs beschreiben Arbeitsauftraege fuer die Desktop-Verarbeitung, zum Beispiel mit Zielmedien, Gesichtern, Markern und weiteren Einstellungen. Sie sind jetzt auch der Startpunkt fuer die Browser-Verarbeitung.",
     steps: [
       "Waehle einen Job aus der Liste aus, um seine JSON-Struktur zu laden.",
       "Pruefe im Editor Namen, Zielgesichter, Marker und weitere gespeicherte Daten.",
-      "Speichere den Job nach Anpassungen wieder unter demselben oder unter einem neuen Namen.",
+      "Starte denselben Job anschliessend im Bereich 'Browser-Verarbeitung', wenn du ihn ueber das Netzwerk ausfuehren willst.",
     ],
     notes: [
       "Jobs sind fuer die Warteschlange gedacht und bilden haeufig den vollstaendigsten Arbeitsauftrag ab.",
@@ -124,6 +156,24 @@ const HELP_TOPICS = {
     ],
     context:
       "Wenn du portable oder getrennt exportierte Varianten brauchst, schau dir zusaetzlich die Job-Exporte an.",
+  },
+  processing: {
+    eyebrow: "Browser-Swap",
+    title: "Jobs im Browser starten",
+    summary:
+      "Die Browser-Verarbeitung nutzt die bestehende Desktop-Pipeline auf dem GPU-Host im Hintergrund. Du startest also keinen zweiten, abgespeckten Algorithmus, sondern denselben gespeicherten Job oder einen Direkt-Upload ueber einen versteckten Runner.",
+    steps: [
+      "Entweder einen gespeicherten Job aus der Job-Liste oeffnen oder Zielmedium und Quellgesicht direkt im Upload-Bereich hochladen.",
+      "Im Bereich 'Browser-Verarbeitung' den passenden Start ausloesen und Status, Fortschritt und Log beobachten.",
+      "Nach erfolgreichem Lauf findest du dort den Ausgabepfad und kannst die Datei direkt ueber den Download-Link abrufen.",
+    ],
+    notes: [
+      "Der Direkt-Upload ist bewusst ein Schnellworkflow: Das erste erkannte Quellgesicht wird auf alle erkannten Zielgesichter angewendet.",
+      "Desktop-GUI und Browser-Modus nutzen dieselbe Host-Runtime, daher muessen Modelle, FFmpeg und Ausgabepfade weiterhin auf dem Windows- oder Linux-Host verfuegbar sein.",
+      "Wenn ein Job keinen Output-Ordner gesetzt hat oder im Upload-Lauf keine Gesichter erkannt werden, bricht der Runner mit einer klaren Fehlermeldung ab.",
+    ],
+    context:
+      "So bekommst du echte Remote-Ausfuehrung vom Mac aus, ohne die bestehende Desktop-Verarbeitung komplett neu bauen zu muessen.",
   },
   "job-exports": {
     eyebrow: "Job-Exporte",
@@ -241,6 +291,28 @@ async function request(url, options = {}) {
       "Content-Type": "application/json",
     },
     ...options,
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const message = payload?.error || payload?.message || response.statusText;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+async function uploadRequest(url, files) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
   });
 
   const contentType = response.headers.get("content-type") || "";
@@ -411,15 +483,71 @@ function renderAllLists() {
 }
 
 function renderStatus(status) {
-  statusBadge.textContent = status.capabilities.browserUi ? "Web bereit" : "Eingeschraenkt";
+  const quality = status.quality;
+  const deploymentProfile = status.deploymentProfile || {};
+  const runtimeProfile = status.runtimeProfile || {};
+  if (quality) {
+    statusBadge.textContent = `${quality.overallPercent}% Remote bereit`;
+    statusSummaryEyebrow.textContent = "Projektstatus";
+    statusSummaryTitle.textContent = quality.scopeTitle;
+    statusSummaryText.textContent = quality.scopeSummary;
+    statusSummaryNote.textContent = quality.scopeNote;
+    statusOverallPercent.textContent = `${quality.overallPercent}%`;
+    statusOverallLabel.textContent = quality.overallLabel;
+    statusAreas.innerHTML = quality.areas
+      .map((area) => {
+        const checks = area.checks
+          .map(
+            (check) =>
+              `<li class="${check.ok ? "is-complete" : "is-open"}">${check.ok ? "Erfuellt" : "Offen"}: ${check.label}</li>`
+          )
+          .join("");
+        const footer = area.remaining.length
+          ? `<p class="item-meta">Offen: ${area.remaining.join(", ")}</p>`
+          : '<p class="item-meta">Alle Kriterien fuer diesen Bereich sind erfuellt.</p>';
+        return `
+          <article class="status-area-card">
+            <div class="status-area-head">
+              <div>
+                <h3>${area.title}</h3>
+                <p class="panel-note">${area.summary}</p>
+              </div>
+              <span class="status-area-percent">${area.percent}%</span>
+            </div>
+            <ul class="status-check-list">${checks}</ul>
+            ${footer}
+          </article>
+        `;
+      })
+      .join("");
+  } else {
+    statusBadge.textContent = status.capabilities.browserUi ? "Web bereit" : "Eingeschraenkt";
+    statusSummaryEyebrow.textContent = "Projektstatus";
+    statusSummaryTitle.textContent = "Remote-GPU-Web-Konsole";
+    statusSummaryText.textContent = "Es liegen noch keine detaillierten Reifegrade vor.";
+    statusSummaryNote.textContent = "";
+    statusOverallPercent.textContent = "--";
+    statusOverallLabel.textContent = "Noch keine Bewertung";
+    statusAreas.innerHTML = "";
+  }
   const cards = [
-    ["Plattform", status.runtime.platform],
-    ["Python", status.runtime.pythonVersion],
-    ["FFmpeg", status.binaries.ffmpeg || "nicht gefunden"],
-    ["FFplay", status.binaries.ffplay || "nicht gefunden"],
+    ["Betriebsmodus", deploymentProfile.summary || "nicht erkannt"],
+    ["Browser-Clients", (deploymentProfile.browserClients || []).join(", ") || "nicht erkannt"],
+    ["GPU-Hosts", (deploymentProfile.gpuHosts || []).join(", ") || "nicht erkannt"],
+    ["Host-Start", deploymentProfile.preferredHostStart || "nicht erkannt"],
+    ["URL-Zugriff", deploymentProfile.preferredUrlMode || "nicht erkannt"],
+    ["Aktiver Host", `${status.runtime.system} ${status.runtime.release}`],
+    ["Aktives Python", status.runtime.pythonVersion],
+    ["Projekt-Runtime", runtimeProfile.label || "nicht erkannt"],
+    ["Starter-Einstieg", runtimeProfile.entryLabel || "nicht erkannt"],
+    ["Kernpakete", runtimeProfile.packageLabel || "nicht erkannt"],
+    ["FFmpeg", runtimeProfile.ffmpegLabel || status.binaries.ffmpeg || "nicht gefunden"],
+    ["FFplay", runtimeProfile.ffplayLabel || status.binaries.ffplay || "nicht gefunden"],
+    ["Git", runtimeProfile.gitLabel || status.binaries.git || "nicht gefunden"],
     ["Jobs", String(status.data.jobs)],
     ["Presets", String(status.data.presets)],
     ["Embeddings", String(status.data.embeddings || 0)],
+    ["Browser-Pipeline", status.capabilities.headlessProcessingApi ? "aktiv" : "deaktiviert"],
   ];
   statusCards.innerHTML = cards
     .map(
@@ -431,6 +559,131 @@ function renderStatus(status) {
       `
     )
     .join("");
+}
+
+function processingStatusLabel(status) {
+  const labels = {
+    idle: "Leerlauf",
+    starting: "Startet",
+    loading: "Laedt",
+    running: "Laeuft",
+    succeeded: "Erfolgreich",
+    failed: "Fehlgeschlagen",
+    stopping: "Stoppt",
+    stopped: "Gestoppt",
+  };
+  return labels[status] || status || "Unbekannt";
+}
+
+function updateProcessingActionState() {
+  const selectedJobName =
+    state.selection && state.selection.type === "jobs" ? state.selection.name : null;
+  const isActive = Boolean(state.processing?.active);
+  const uploadReady = Boolean(state.browserWorkflow?.canRun);
+  processingStartButton.disabled = !selectedJobName || isActive;
+  processingStopButton.disabled = !isActive;
+  workflowRunButton.disabled = !uploadReady || isActive;
+  processingSelection.textContent = selectedJobName
+    ? `Ausgewaehlter Job: ${selectedJobName}`
+    : "Bitte zuerst einen Job aus der Liste oeffnen.";
+}
+
+function renderBrowserWorkflow(payload) {
+  state.browserWorkflow = payload;
+  const parts = [];
+  if (payload.targetMedia) {
+    parts.push(
+      `<div><strong>Zielmedium:</strong> ${payload.targetMedia.name} (${payload.targetMedia.fileType})</div>`
+    );
+  } else {
+    parts.push("<div><strong>Zielmedium:</strong> noch keines hochgeladen</div>");
+  }
+
+  if (payload.sourceFaces?.length) {
+    parts.push(
+      `<div><strong>Quellgesichter:</strong> ${payload.sourceFaces.length} Datei(en)</div>`
+    );
+    parts.push(
+      `<div>${payload.sourceFaces.map((entry) => entry.name).join(", ")}</div>`
+    );
+  } else {
+    parts.push("<div><strong>Quellgesichter:</strong> noch keine hochgeladen</div>");
+  }
+
+  parts.push(`<div><strong>Ausgabeordner:</strong> ${payload.outputFolder}</div>`);
+  parts.push(
+    `<div><strong>Strategie:</strong> Erstes erkanntes Quellgesicht auf alle Zielgesichter anwenden</div>`
+  );
+  parts.push(`<div>${payload.readyMessage}</div>`);
+  workflowSummary.innerHTML = parts.join("");
+  updateProcessingActionState();
+}
+
+function renderProcessingStatus(payload) {
+  state.processing = payload;
+  processingBadge.textContent = processingStatusLabel(payload.status);
+  processingMessage.textContent =
+    payload.message || "Noch kein Job im Browser gestartet.";
+
+  const meta = [];
+  if (payload.jobName) {
+    meta.push(`Job: ${payload.jobName}`);
+  }
+  if (payload.startedAt) {
+    meta.push(`Gestartet: ${new Date(payload.startedAt).toLocaleString()}`);
+  }
+  if (payload.finishedAt) {
+    meta.push(`Beendet: ${new Date(payload.finishedAt).toLocaleString()}`);
+  }
+  if (payload.pid) {
+    meta.push(`PID: ${payload.pid}`);
+  }
+  processingMeta.innerHTML = meta.length
+    ? meta.map((line) => `<div>${line}</div>`).join("")
+    : '<div class="item-meta">Noch keine Laufmetadaten vorhanden.</div>';
+
+  const percent = payload.progress?.percent;
+  if (Number.isFinite(percent)) {
+    processingProgress.hidden = false;
+    processingProgressValue.style.setProperty("--progress-width", `${percent}%`);
+    processingProgressValue.textContent = `${percent}%`;
+  } else {
+    processingProgress.hidden = true;
+    processingProgressValue.style.setProperty("--progress-width", "0%");
+    processingProgressValue.textContent = "";
+  }
+
+  const outputParts = [];
+  if (payload.outputPath) {
+    outputParts.push(`<div><strong>Ausgabe:</strong> ${payload.outputPath}</div>`);
+  }
+  if (payload.outputDownloadUrl && payload.outputExists) {
+    outputParts.push(
+      `<div><a class="ghost" href="${payload.outputDownloadUrl}" target="_blank" rel="noreferrer">Ausgabe herunterladen</a></div>`
+    );
+  }
+  if (payload.lastMessage) {
+    outputParts.push(`<div><strong>Hinweis:</strong> ${payload.lastMessage}</div>`);
+  }
+  processingOutput.innerHTML = outputParts.length
+    ? outputParts.join("")
+    : '<div class="item-meta">Nach einem erfolgreichen Lauf erscheint hier der Ausgabepfad.</div>';
+
+  processingLog.value = (payload.logTail || []).join("\n");
+  updateProcessingActionState();
+
+  const shouldPoll = ["starting", "loading", "running", "stopping"].includes(
+    payload.status
+  );
+  if (shouldPoll && !state.processingPollHandle) {
+    state.processingPollHandle = window.setInterval(() => {
+      refreshProcessingStatus().catch((error) => showFlash(error.message, true));
+    }, 2500);
+  }
+  if (!shouldPoll && state.processingPollHandle) {
+    window.clearInterval(state.processingPollHandle);
+    state.processingPollHandle = null;
+  }
 }
 
 function renderWorkspaceSummary(summary) {
@@ -462,10 +715,22 @@ async function refreshStatus() {
   renderStatus(payload);
 }
 
+async function refreshProcessingStatus() {
+  const payload = await request("/api/processing/status");
+  renderProcessingStatus(payload);
+}
+
+async function refreshBrowserWorkflow() {
+  const payload = await request("/api/browser-workflow");
+  renderBrowserWorkflow(payload);
+}
+
 async function refreshAll() {
   clearFlash();
   await Promise.all([
     refreshStatus(),
+    refreshProcessingStatus(),
+    refreshBrowserWorkflow(),
     refreshCollection("jobs"),
     refreshCollection("job-exports"),
     refreshCollection("presets"),
@@ -483,6 +748,7 @@ function selectEditor(type, name, data, subtitle) {
   saveButton.disabled = false;
   deleteButton.disabled = type === "workspace";
   renderAllLists();
+  updateProcessingActionState();
 }
 
 function setDefaultEditorState() {
@@ -493,6 +759,7 @@ function setDefaultEditorState() {
   jsonEditor.value = "";
   saveButton.disabled = true;
   deleteButton.disabled = true;
+  updateProcessingActionState();
 }
 
 function draftPayload() {
@@ -799,9 +1066,122 @@ async function deleteCurrentSelection() {
   }
 }
 
+async function startSelectedJob() {
+  if (!state.selection || state.selection.type !== "jobs") {
+    showFlash("Bitte zuerst einen gespeicherten Job aus der Liste oeffnen.", true);
+    return;
+  }
+
+  clearFlash();
+  try {
+    const payload = await request(
+      `/api/processing/jobs/${encodeURIComponent(state.selection.name)}/start`,
+      {
+        method: "POST",
+      }
+    );
+    renderHelpTopic("processing");
+    renderProcessingStatus(payload);
+    showFlash(`Browser-Verarbeitung fuer "${state.selection.name}" gestartet.`);
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+async function stopProcessing() {
+  clearFlash();
+  try {
+    const payload = await request("/api/processing/stop", {
+      method: "POST",
+    });
+    renderProcessingStatus(payload);
+    showFlash("Browser-Verarbeitung gestoppt.");
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+async function uploadTargetMedia() {
+  clearFlash();
+  try {
+    const files = Array.from(targetUploadInput.files || []);
+    if (!files.length) {
+      throw new Error("Bitte zuerst ein Zielmedium auswaehlen.");
+    }
+    const payload = await uploadRequest("/api/browser-workflow/target", files);
+    renderBrowserWorkflow(payload.state);
+    renderHelpTopic("processing");
+    showFlash(`Zielmedium "${payload.saved.name}" hochgeladen.`);
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+async function uploadSourceFaces() {
+  clearFlash();
+  try {
+    const files = Array.from(sourceUploadInput.files || []);
+    if (!files.length) {
+      throw new Error("Bitte zuerst mindestens ein Quellgesicht auswaehlen.");
+    }
+    const payload = await uploadRequest("/api/browser-workflow/sources", files);
+    renderBrowserWorkflow(payload.state);
+    renderHelpTopic("processing");
+    showFlash(`${payload.saved.length} Quellgesicht(er) hochgeladen.`);
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+async function resetWorkflow() {
+  clearFlash();
+  try {
+    const payload = await request("/api/browser-workflow/reset", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    targetUploadInput.value = "";
+    sourceUploadInput.value = "";
+    detectionFrameInput.value = "0";
+    renderBrowserWorkflow(payload);
+    showFlash("Direkt-Upload-Zustand zurueckgesetzt.");
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+async function runUploadedWorkflow() {
+  clearFlash();
+  try {
+    const parsedFrame = Number(detectionFrameInput.value || 0);
+    const detectionFrame = Number.isFinite(parsedFrame)
+      ? Math.max(0, Math.floor(parsedFrame))
+      : 0;
+    const payload = await request("/api/browser-workflow/run", {
+      method: "POST",
+      body: JSON.stringify({ detectionFrame }),
+    });
+    renderHelpTopic("processing");
+    renderProcessingStatus(payload);
+    showFlash("Browser-Direktlauf gestartet.");
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
 document.getElementById("refreshAllButton").addEventListener("click", refreshAll);
 openHelpButton.addEventListener("click", () => showHelpTopic("overview"));
 helpOverviewButton.addEventListener("click", () => showHelpTopic("overview", false));
+processingRefreshButton.addEventListener("click", () => {
+  renderHelpTopic("processing");
+  refreshProcessingStatus().catch((error) => showFlash(error.message, true));
+});
+workflowResetButton.addEventListener("click", resetWorkflow);
+processingStartButton.addEventListener("click", startSelectedJob);
+processingStopButton.addEventListener("click", stopProcessing);
+uploadTargetButton.addEventListener("click", uploadTargetMedia);
+uploadSourcesButton.addEventListener("click", uploadSourceFaces);
+workflowRunButton.addEventListener("click", runUploadedWorkflow);
 helpToggleButton.addEventListener("click", () => {
   const nextCollapsed = !state.helpCollapsed;
   setHelpCollapsed(nextCollapsed);

@@ -14,9 +14,9 @@
           <h1>VisoMaster Web-Konsole</h1>
           <p class="hero-copy">
             Headless-Zugriff auf Jobs, Presets, Embeddings und den
-            Arbeitsbereichsstatus. Das ist die erste browserfähige Ebene des
-            Projekts und kann schrittweise zu einem vollständigen
-            Verarbeitungs-Backend ausgebaut werden.
+            Arbeitsbereichsstatus. Gespeicherte Jobs lassen sich jetzt direkt
+            aus dem Browser in der bestehenden Desktop-Pipeline starten und
+            ueber das Netzwerk beobachten.
           </p>
         </div>
         <div class="hero-actions">
@@ -68,6 +68,10 @@
               <button class="help-card" type="button" data-help-topic="jobs">
                 <strong>Jobs & Exporte</strong>
                 <span>Nutze gespeicherte Job-Dateien, pruefe Exporte und oeffne Eintraege im Editor.</span>
+              </button>
+              <button class="help-card" type="button" data-help-topic="processing">
+                <strong>Browser-Swap</strong>
+                <span>Starte einen gespeicherten Job im Browser und verfolge Status, Log und Ausgabe.</span>
               </button>
               <button class="help-card" type="button" data-help-topic="presets">
                 <strong>Presets</strong>
@@ -121,7 +125,128 @@
             </div>
             <span id="statusBadge" class="badge">Lädt</span>
           </div>
+          <div class="status-overview">
+            <div class="status-summary-copy">
+              <p id="statusSummaryEyebrow" class="eyebrow status-summary-eyebrow">Projektstatus</p>
+              <h3 id="statusSummaryTitle">Remote-GPU-Web-Konsole</h3>
+              <p id="statusSummaryText" class="panel-note">
+                Der aktuelle Hybrid-Meilenstein wird geladen.
+              </p>
+              <p id="statusSummaryNote" class="panel-note"></p>
+            </div>
+            <article class="status-overall-card">
+              <span>Gesamtgrad</span>
+              <strong id="statusOverallPercent">0%</strong>
+              <small id="statusOverallLabel">Wird berechnet</small>
+            </article>
+          </div>
+          <div id="statusAreas" class="status-areas"></div>
+          <p class="panel-note status-runtime-note">
+            Laufzeit-Checks und Projektdaten werden darunter live aus der aktuellen Umgebung gelesen.
+          </p>
           <div id="statusCards" class="status-cards"></div>
+        </section>
+
+        <section class="panel processing-panel">
+          <div class="panel-header">
+            <div>
+              <div class="section-title-row">
+                <h2>Browser-Verarbeitung</h2>
+                <button
+                  class="help-trigger"
+                  type="button"
+                  data-help-topic="processing"
+                  data-tooltip="Startet einen gespeicherten Job ueber die Desktop-Pipeline und zeigt den Laufstatus an."
+                  aria-label="Hilfe zur Browser-Verarbeitung anzeigen"
+                >
+                  ?
+                </button>
+              </div>
+              <p class="panel-note">
+                Wähle links einen gespeicherten Job aus und starte ihn dann hier. Die Original-GUI bleibt davon unberührt.
+              </p>
+            </div>
+            <div class="editor-actions">
+              <button id="processingRefreshButton" class="ghost" type="button">Status neu laden</button>
+              <button id="workflowResetButton" class="ghost" type="button">Uploads zurücksetzen</button>
+              <button id="processingStopButton" class="danger" type="button" disabled>Stoppen</button>
+              <button id="processingStartButton" class="primary" type="button" disabled>Gewählten Job starten</button>
+            </div>
+          </div>
+
+          <div class="processing-setup-grid">
+            <article class="processing-card">
+              <div class="collection-title-row">
+                <h3>Direkt-Upload ohne Job</h3>
+              </div>
+              <p class="panel-note">
+                Fuer den Schnellstart ohne gespeicherten Job: Zielmedium hochladen, Quellgesicht hochladen und dann direkt starten.
+              </p>
+
+              <div class="builder-grid processing-upload-grid">
+                <label class="field">
+                  <span>Zielmedium</span>
+                  <input id="targetUploadInput" type="file" accept="image/*,video/*" />
+                </label>
+
+                <label class="field">
+                  <span>Quellgesicht(er)</span>
+                  <input id="sourceUploadInput" type="file" accept="image/*" multiple />
+                </label>
+
+                <label class="field">
+                  <span>Erkennungsframe</span>
+                  <input id="detectionFrameInput" type="number" min="0" step="1" value="0" />
+                </label>
+              </div>
+
+              <div class="editor-actions processing-upload-actions">
+                <button id="uploadTargetButton" class="ghost" type="button">Zielmedium hochladen</button>
+                <button id="uploadSourcesButton" class="ghost" type="button">Quellgesichter hochladen</button>
+                <button id="workflowRunButton" class="primary" type="button" disabled>Direkt-Upload starten</button>
+              </div>
+            </article>
+
+            <article class="processing-card">
+              <div class="collection-title-row">
+                <h3>Aktueller Upload-Stand</h3>
+              </div>
+              <div id="workflowSummary" class="processing-output"></div>
+            </article>
+          </div>
+
+          <div class="processing-grid">
+            <article class="processing-card">
+              <div class="collection-title-row">
+                <h3>Aktueller Lauf</h3>
+                <span id="processingBadge" class="badge">Leerlauf</span>
+              </div>
+              <p id="processingMessage" class="panel-note">
+                Noch kein Job im Browser gestartet.
+              </p>
+              <div id="processingMeta" class="processing-meta"></div>
+              <div id="processingProgress" class="processing-progress" hidden>
+                <div class="processing-progress-bar">
+                  <span id="processingProgressValue"></span>
+                </div>
+              </div>
+            </article>
+
+            <article class="processing-card">
+              <div class="collection-title-row">
+                <h3>Auswahl & Ausgabe</h3>
+              </div>
+              <p id="processingSelection" class="panel-note">
+                Bitte zuerst einen Job aus der Liste öffnen.
+              </p>
+              <div id="processingOutput" class="processing-output"></div>
+            </article>
+          </div>
+
+          <label class="field processing-log-field">
+            <span>Runner-Log</span>
+            <textarea id="processingLog" class="processing-log" spellcheck="false" readonly></textarea>
+          </label>
         </section>
 
         <section class="panel collection-panel">
