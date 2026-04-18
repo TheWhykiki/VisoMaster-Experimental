@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import cgi
 import json
 import mimetypes
 import socket
+from email.parser import BytesParser
+from email.policy import default as email_policy
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -296,34 +297,31 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
         if not content_type.startswith("multipart/form-data"):
             raise ValueError("Datei-Uploads muessen als multipart/form-data gesendet werden.")
 
-        form = cgi.FieldStorage(
-            fp=self.rfile,
-            headers=self.headers,
-            environ={
-                "REQUEST_METHOD": "POST",
-                "CONTENT_TYPE": content_type,
-            },
+        content_length = int(self.headers.get("Content-Length", "0"))
+        if content_length <= 0:
+            raise ValueError("Es wurden keine Dateien uebertragen.")
+
+        raw_body = self.rfile.read(content_length)
+        message = BytesParser(policy=email_policy).parsebytes(
+            (
+                f"Content-Type: {content_type}\r\n"
+                "MIME-Version: 1.0\r\n"
+                "\r\n"
+            ).encode("utf-8")
+            + raw_body
         )
 
-        fields = []
-        if "files" in form:
-            candidate = form["files"]
-            if isinstance(candidate, list):
-                fields.extend(candidate)
-            else:
-                fields.append(candidate)
-        if "file" in form:
-            candidate = form["file"]
-            if isinstance(candidate, list):
-                fields.extend(candidate)
-            else:
-                fields.append(candidate)
-
         uploads: list[tuple[str, bytes]] = []
-        for field in fields:
-            if not getattr(field, "filename", None):
+        for part in message.iter_parts():
+            if part.get_content_disposition() != "form-data":
                 continue
-            uploads.append((field.filename, field.file.read()))
+            field_name = part.get_param("name", header="content-disposition")
+            if field_name not in {"files", "file"}:
+                continue
+            filename = part.get_filename()
+            if not filename:
+                continue
+            uploads.append((filename, part.get_payload(decode=True) or b""))
 
         if not uploads:
             raise ValueError("Es wurden keine Dateien uebertragen.")
