@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.helpers.paths import ensure_project_dir
+from app.services import web_workbench
 
 
 WORKFLOW_ROOT = ensure_project_dir(".web", "workflow")
@@ -81,10 +82,11 @@ def current_state() -> dict[str, Any]:
     source_files = sorted(SOURCE_DIR.iterdir()) if SOURCE_DIR.exists() else []
     target = _entry(target_files[0]) if target_files else None
     sources = [_entry(path) for path in source_files if path.is_file()]
+    workbench_state = web_workbench.read_state()
     return {
         "targetMedia": target,
         "sourceFaces": sources,
-        "outputFolder": str(OUTPUT_DIR),
+        "outputFolder": workbench_state["control"]["OutputMediaFolder"],
         "canRun": bool(target and sources),
         "readyMessage": (
             "Direktlauf bereit."
@@ -93,6 +95,7 @@ def current_state() -> dict[str, Any]:
         ),
         "updatedAt": _iso_now(),
         "assignStrategy": "first_source_to_all_targets",
+        "workbench": workbench_state,
     }
 
 
@@ -132,18 +135,25 @@ def save_source_uploads(files: list[tuple[str, bytes]]) -> dict[str, Any]:
     return {"saved": saved_items, "state": current_state()}
 
 
-def build_run_request(detection_frame: int = 0) -> dict[str, Any]:
+def build_run_request(
+    detection_frame: int = 0,
+    workbench_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     state = current_state()
     if not state["targetMedia"] or not state["sourceFaces"]:
         raise ValueError("Bitte zuerst Zielmedium und mindestens ein Quellgesicht hochladen.")
 
     normalized_detection_frame = max(0, int(detection_frame))
+    normalized_workbench = web_workbench.normalize_state(
+        workbench_state or state.get("workbench")
+    )
     return {
         "mode": "upload",
         "label": "Browser-Direktlauf",
         "targetMediaPath": state["targetMedia"]["path"],
         "inputFacePaths": [entry["path"] for entry in state["sourceFaces"]],
-        "outputFolder": str(OUTPUT_DIR),
+        "outputFolder": normalized_workbench["control"]["OutputMediaFolder"],
         "detectionFrame": normalized_detection_frame,
         "assignStrategy": state["assignStrategy"],
+        "workbench": normalized_workbench,
     }

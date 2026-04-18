@@ -1,8 +1,6 @@
 const state = {
   selection: null,
-  helpTopic: "overview",
-  helpCollapsed: true,
-  processingPollHandle: null,
+  processing: null,
   browserWorkflow: null,
   collections: {
     jobs: [],
@@ -10,7 +8,17 @@ const state = {
     presets: [],
     embeddings: [],
   },
-  processing: null,
+  utilityTab: "status",
+  workbenchTabs: [],
+  workbenchDefaults: { control: {}, parameters: {} },
+  workbench: { control: {}, parameters: {} },
+  activeWorkbenchTab: null,
+  workbenchSaveHandle: null,
+  processingPollHandle: null,
+  previewUrls: {
+    target: null,
+    sources: {},
+  },
   embeddingDraft: {
     fileName: "",
     name: "",
@@ -23,7 +31,35 @@ const jobExportsList = document.getElementById("jobExportsList");
 const presetsList = document.getElementById("presetsList");
 const embeddingsList = document.getElementById("embeddingsList");
 const workspaceSummary = document.getElementById("workspaceSummary");
-const statusCards = document.getElementById("statusCards");
+const globalFlash = document.getElementById("globalFlash");
+
+const processingBadge = document.getElementById("processingBadge");
+const processingSelection = document.getElementById("processingSelection");
+const processingMessage = document.getElementById("processingMessage");
+const processingMeta = document.getElementById("processingMeta");
+const processingOutput = document.getElementById("processingOutput");
+const processingLog = document.getElementById("processingLog");
+const processingProgress = document.getElementById("processingProgress");
+const processingProgressValue = document.getElementById("processingProgressValue");
+const processingStartButton = document.getElementById("processingStartButton");
+const processingStopButton = document.getElementById("processingStopButton");
+const processingRefreshButton = document.getElementById("processingRefreshButton");
+
+const targetUploadInput = document.getElementById("targetUploadInput");
+const sourceUploadInput = document.getElementById("sourceUploadInput");
+const uploadTargetButton = document.getElementById("uploadTargetButton");
+const uploadSourcesButton = document.getElementById("uploadSourcesButton");
+const workflowResetButton = document.getElementById("workflowResetButton");
+const workflowRunButton = document.getElementById("workflowRunButton");
+const workflowSummary = document.getElementById("workflowSummary");
+const detectionFrameInput = document.getElementById("detectionFrameInput");
+const targetMediaPreview = document.getElementById("targetMediaPreview");
+const sourceFacePreviewList = document.getElementById("sourceFacePreviewList");
+const stageTargetPreview = document.getElementById("stageTargetPreview");
+const stageSourcePreview = document.getElementById("stageSourcePreview");
+const targetStageMeta = document.getElementById("targetStageMeta");
+const sourceStageMeta = document.getElementById("sourceStageMeta");
+
 const statusBadge = document.getElementById("statusBadge");
 const statusSummaryEyebrow = document.getElementById("statusSummaryEyebrow");
 const statusSummaryTitle = document.getElementById("statusSummaryTitle");
@@ -32,32 +68,14 @@ const statusSummaryNote = document.getElementById("statusSummaryNote");
 const statusOverallPercent = document.getElementById("statusOverallPercent");
 const statusOverallLabel = document.getElementById("statusOverallLabel");
 const statusAreas = document.getElementById("statusAreas");
+const statusCards = document.getElementById("statusCards");
+
 const nameInput = document.getElementById("nameInput");
 const jsonEditor = document.getElementById("jsonEditor");
 const editorTitle = document.getElementById("editorTitle");
 const editorSubtitle = document.getElementById("editorSubtitle");
 const saveButton = document.getElementById("saveButton");
 const deleteButton = document.getElementById("deleteButton");
-const flashMessage = document.getElementById("flashMessage");
-const processingBadge = document.getElementById("processingBadge");
-const processingMessage = document.getElementById("processingMessage");
-const processingMeta = document.getElementById("processingMeta");
-const processingSelection = document.getElementById("processingSelection");
-const processingOutput = document.getElementById("processingOutput");
-const processingLog = document.getElementById("processingLog");
-const processingRefreshButton = document.getElementById("processingRefreshButton");
-const processingStartButton = document.getElementById("processingStartButton");
-const processingStopButton = document.getElementById("processingStopButton");
-const processingProgress = document.getElementById("processingProgress");
-const processingProgressValue = document.getElementById("processingProgressValue");
-const workflowSummary = document.getElementById("workflowSummary");
-const workflowResetButton = document.getElementById("workflowResetButton");
-const workflowRunButton = document.getElementById("workflowRunButton");
-const targetUploadInput = document.getElementById("targetUploadInput");
-const sourceUploadInput = document.getElementById("sourceUploadInput");
-const uploadTargetButton = document.getElementById("uploadTargetButton");
-const uploadSourcesButton = document.getElementById("uploadSourcesButton");
-const detectionFrameInput = document.getElementById("detectionFrameInput");
 
 const builderFileName = document.getElementById("builderFileName");
 const builderEmbeddingName = document.getElementById("builderEmbeddingName");
@@ -69,221 +87,13 @@ const builderResetButton = document.getElementById("builderResetButton");
 const builderModelList = document.getElementById("builderModelList");
 const builderPreview = document.getElementById("builderPreview");
 const builderStats = document.getElementById("builderStats");
-const helpPanel = document.getElementById("helpPanel");
-const helpPanelBody = document.getElementById("helpPanelBody");
-const openHelpButton = document.getElementById("openHelpButton");
-const helpOverviewButton = document.getElementById("helpOverviewButton");
-const helpToggleButton = document.getElementById("helpToggleButton");
-const helpTopicEyebrow = document.getElementById("helpTopicEyebrow");
-const helpTopicTitle = document.getElementById("helpTopicTitle");
-const helpTopicSummary = document.getElementById("helpTopicSummary");
-const helpTopicSteps = document.getElementById("helpTopicSteps");
-const helpTopicNotes = document.getElementById("helpTopicNotes");
-const helpTopicContext = document.getElementById("helpTopicContext");
 
-const HELP_TOPICS = {
-  overview: {
-    eyebrow: "Schnellstart",
-    title: "So findest du dich schnell zurecht",
-    summary:
-      "Die Web-Konsole ist fuer den Remote-Betrieb gedacht: Browser auf dem Mac oder einem anderen Client, GPU-Host auf Windows oder Linux. Mit wenigen Klicks springst du von der Uebersicht direkt in Jobs, Presets, Embeddings, den letzten Arbeitsbereich oder einen laufenden Browser-Job.",
-    steps: [
-      "Starte VisoMaster auf dem Windows- oder Linux-Host im Netzwerkmodus und oeffne danach die ausgegebene URL auf dem Mac im Browser.",
-      "Pruefe zuerst den Systemstatus, damit du sofort siehst, ob Host-Runtime, Netzwerkmodus und Projektdaten verfuegbar sind.",
-      "Oeffne danach in den Projektdaten den Bereich, den du bearbeiten willst, und klicke auf den gewuenschten Eintrag.",
-      "Nutze anschliessend den JSON-Editor oder den Embedding-Builder, um Daten sicher zu pruefen und zu speichern oder direkt einen Lauf zu starten.",
-    ],
-    notes: [
-      "Der Mac dient dabei idealerweise nur als Browser-Client und nicht als GPU-Verarbeitungshost.",
-      "Die Web-Konsole kann gespeicherte Jobs jetzt direkt ueber die bestehende Desktop-Pipeline auf dem Remote-Host starten.",
-      "Die Fragezeichen neben den Bereichen fuehren immer direkt zur passenden Erlaeuterung.",
-      "Mit dem Button 'Schnellhilfe' oeffnest du diese Dokumentation jederzeit erneut.",
-    ],
-    context:
-      "Besonders praktisch ist die Konsole fuer einen Mac-Client, der nur ueber URL auf einen staerkeren Windows- oder Linux-Rechner zugreift.",
-  },
-  status: {
-    eyebrow: "Status",
-    title: "Systemstatus lesen",
-    summary:
-      "Hier siehst du auf einen Blick, wie weit der aktuelle Remote-Meilenstein ausgebaut ist, welche Host-Runtime aktiv ist und wie der Browser-Client gedacht ist.",
-    steps: [
-      "Klicke auf 'Aktualisieren', um Remote-Bewertung, Deployment-Profil, Runtime-Informationen und Dateizaehler neu einzulesen.",
-      "Pruefe zuerst die 100%-Karten pro Bereich und danach das Deployment- und Runtime-Profil mit Host- und Client-Rollen.",
-      "Nutze die Zaehler fuer Jobs, Presets und Embeddings als schnellen Gesundheitscheck deines Projekts.",
-    ],
-    notes: [
-      "Die Prozentwerte beziehen sich auf den aktuellen Remote-Meilenstein des Projekts und nicht auf spaetere, bewusst getrennte Zukunftsausbaustufen.",
-      "Die Runtime-Karten unterscheiden bewusst zwischen Browser-Client-Kontext und der starter-verwalteten Host-Runtime.",
-      "Wenn Zaehler auf null stehen, fehlen oft Dateien oder das Projekt wurde noch nicht befuellt.",
-      "Ein Mac darf hier bewusst nur Client sein; der GPU-Host soll auf Windows oder Linux laufen.",
-    ],
-    context:
-      "Der Statusbereich eignet sich als erster Stopp vor jeder Bearbeitung oder Fehlersuche.",
-  },
-  collections: {
-    eyebrow: "Projektdaten",
-    title: "Dateisammlungen verstehen",
-    summary:
-      "Die Projektdaten gruppieren die wichtigsten JSON-basierten Arbeitsdateien, damit du sie ohne Dateibrowser oeffnen und bearbeiten kannst.",
-    steps: [
-      "Waehle die passende Sammlung wie Jobs, Presets oder Embeddings.",
-      "Lade die Liste bei Bedarf mit 'Neu laden' fruehzeitig nach.",
-      "Klicke auf einen Eintrag, um ihn sofort im Editor oder in der passenden Vorschau zu oeffnen.",
-    ],
-    notes: [
-      "Jede Karte zeigt eine eigene Sammlung aus dem Projektordner an.",
-      "Die Metazeile unter jedem Eintrag hilft bei der Einordnung, etwa ueber Zeitstempel oder Dimensionen.",
-      "Ungueltiges JSON wird markiert, damit fehlerhafte Dateien schneller auffallen.",
-    ],
-    context:
-      "So gelangst du in ein bis zwei Klicks von der Sammlung direkt zur konkreten Datei.",
-  },
-  jobs: {
-    eyebrow: "Jobs",
-    title: "Jobs gezielt pruefen",
-    summary:
-      "Jobs beschreiben Arbeitsauftraege fuer die Desktop-Verarbeitung, zum Beispiel mit Zielmedien, Gesichtern, Markern und weiteren Einstellungen. Sie sind jetzt auch der Startpunkt fuer die Browser-Verarbeitung.",
-    steps: [
-      "Waehle einen Job aus der Liste aus, um seine JSON-Struktur zu laden.",
-      "Pruefe im Editor Namen, Zielgesichter, Marker und weitere gespeicherte Daten.",
-      "Starte denselben Job anschliessend im Bereich 'Browser-Verarbeitung', wenn du ihn ueber das Netzwerk ausfuehren willst.",
-    ],
-    notes: [
-      "Jobs sind fuer die Warteschlange gedacht und bilden haeufig den vollstaendigsten Arbeitsauftrag ab.",
-      "Die Metainfos in der Liste zeigen unter anderem Marker- und Zielgesicht-Anzahlen.",
-      "Ein geloeschter Job verschwindet sofort aus der Sammlung und muss bei Bedarf neu angelegt werden.",
-    ],
-    context:
-      "Wenn du portable oder getrennt exportierte Varianten brauchst, schau dir zusaetzlich die Job-Exporte an.",
-  },
-  processing: {
-    eyebrow: "Browser-Swap",
-    title: "Jobs im Browser starten",
-    summary:
-      "Die Browser-Verarbeitung nutzt die bestehende Desktop-Pipeline auf dem GPU-Host im Hintergrund. Du startest also keinen zweiten, abgespeckten Algorithmus, sondern denselben gespeicherten Job oder einen Direkt-Upload ueber einen versteckten Runner.",
-    steps: [
-      "Entweder einen gespeicherten Job aus der Job-Liste oeffnen oder Zielmedium und Quellgesicht direkt im Upload-Bereich hochladen.",
-      "Im Bereich 'Browser-Verarbeitung' den passenden Start ausloesen und Status, Fortschritt und Log beobachten.",
-      "Nach erfolgreichem Lauf findest du dort den Ausgabepfad und kannst die Datei direkt ueber den Download-Link abrufen.",
-    ],
-    notes: [
-      "Der Direkt-Upload ist bewusst ein Schnellworkflow: Das erste erkannte Quellgesicht wird auf alle erkannten Zielgesichter angewendet.",
-      "Desktop-GUI und Browser-Modus nutzen dieselbe Host-Runtime, daher muessen Modelle, FFmpeg und Ausgabepfade weiterhin auf dem Windows- oder Linux-Host verfuegbar sein.",
-      "Wenn ein Job keinen Output-Ordner gesetzt hat oder im Upload-Lauf keine Gesichter erkannt werden, bricht der Runner mit einer klaren Fehlermeldung ab.",
-    ],
-    context:
-      "So bekommst du echte Remote-Ausfuehrung vom Mac aus, ohne die bestehende Desktop-Verarbeitung komplett neu bauen zu muessen.",
-  },
-  "job-exports": {
-    eyebrow: "Job-Exporte",
-    title: "Exportierte Jobs einordnen",
-    summary:
-      "Job-Exporte sind eigenstaendige JSON-Dateien fuer Austausch, Sicherung oder getrennte Verarbeitungsschritte. Sie lassen sich genauso direkt oeffnen wie normale Jobs.",
-    steps: [
-      "Lade die Exportliste neu, wenn neue Dateien ausserhalb der Konsole erzeugt wurden.",
-      "Oeffne den gewuenschten Export und kontrolliere den JSON-Inhalt im Editor.",
-      "Speichere Anpassungen oder loesche veraltete Exportdateien direkt aus der Ansicht.",
-    ],
-    notes: [
-      "Exportdateien sind oft kompaktere Zwischenstaende fuer Weitergabe oder Ruecksicherung.",
-      "Die Bearbeitung funktioniert wie bei Jobs, die Sammlung ist aber getrennt.",
-      "Beim Aufraeumen lohnt sich ein Blick auf das Aenderungsdatum in der Liste.",
-    ],
-    context:
-      "Wenn du unsicher bist, starte ueber die Schnellhilfe oder ueber das Fragezeichen neben 'Job-Exporte'.",
-  },
-  presets: {
-    eyebrow: "Presets",
-    title: "Presets sicher bearbeiten",
-    summary:
-      "Ein Preset kombiniert Parameter-JSON und Control-JSON. Die Web-Konsole fuehrt beide Teile in einer gemeinsamen Bearbeitungsansicht zusammen.",
-    steps: [
-      "Oeffne ein Preset, um die zusammengefuehrte Struktur im Editor zu sehen.",
-      "Halte die Bereiche 'parameters' und 'control' sauber getrennt, wenn du Inhalte bearbeitest.",
-      "Speichere das Preset, damit beide zugehoerigen Dateien im Projekt aktualisiert werden.",
-    ],
-    notes: [
-      "Presets helfen, wiederkehrende Einstellungen schnell erneut zu nutzen.",
-      "Wenn ein Control-Teil fehlt, kann die Konsole ihn beim Speichern neu anlegen.",
-      "Ein leerer oder ungueltiger Aufbau fuehrt leicht zu unvollstaendigen Presets.",
-    ],
-    context:
-      "Presets sind ideal, wenn du wiederkehrende Konfigurationen statt kompletter Jobs sichern willst.",
-  },
-  embeddings: {
-    eyebrow: "Embeddings",
-    title: "Embedding-Dateien verstehen",
-    summary:
-      "Embeddings bestehen aus einem Namen und einem embedding_store mit einem oder mehreren Modellvektoren. Die Liste zeigt dir dazu direkt Modelle und Dimensionen an.",
-    steps: [
-      "Waehle ein Embedding aus der Liste, um die validierte JSON-Struktur zu laden.",
-      "Pruefe im Editor Namen und embedding_store oder uebernimm die Daten in den Builder.",
-      "Nutze den Builder, wenn du Modellvektoren komfortabler hinzufuegen oder umbauen willst.",
-    ],
-    notes: [
-      "Jeder Modellvektor muss numerisch und nicht leer sein.",
-      "Die Konsole validiert Embeddings strenger als einfache Roh-JSON-Dateien.",
-      "Mehrere Modelle in einer Datei sind moeglich, sofern sie im embedding_store sauber benannt sind.",
-    ],
-    context:
-      "Die Detailansicht und der Builder greifen ineinander, damit manuelle Eingaben weniger fehleranfaellig werden.",
-  },
-  workspace: {
-    eyebrow: "Arbeitsbereich",
-    title: "Letzten Arbeitsbereich nutzen",
-    summary:
-      "Der letzte Arbeitsbereich spiegelt den zuletzt gespeicherten Projektzustand wider und ist der schnellste Weg, um einen Gesamtstand zu kontrollieren oder zu korrigieren.",
-    steps: [
-      "Klicke auf 'Oeffnen', um last_workspace.json direkt in den Editor zu laden.",
-      "Pruefe Zielmedien, Quellgesichter, Zielgesichter und Marker in einer einzigen Datei.",
-      "Speichere deine Aenderungen, wenn der Projektzustand angepasst werden soll.",
-    ],
-    notes: [
-      "Diese Datei ist keine Sammlung mehrerer Eintraege, sondern ein einzelner Projektzustand.",
-      "Die Zusammenfassung zeigt zentrale Kennzahlen schon vor dem Oeffnen an.",
-      "Aenderungen wirken sich auf den zuletzt gespeicherten Workspace aus.",
-    ],
-    context:
-      "Der Workspace ist besonders hilfreich, wenn du schnell den Gesamtzustand statt nur einzelner Jobs pruefen willst.",
-  },
-  editor: {
-    eyebrow: "Editor",
-    title: "JSON-Editor effektiv verwenden",
-    summary:
-      "Der Editor ist die zentrale Bearbeitungsflaeche fuer Jobs, Exporte, Presets, Embeddings und den letzten Arbeitsbereich.",
-    steps: [
-      "Oeffne zuerst einen Eintrag aus einer Sammlung oder den letzten Arbeitsbereich.",
-      "Passe Name und JSON nur mit gueltiger Struktur an, bevor du speicherst.",
-      "Nutze 'Loeschen' nur fuer Sammlungsobjekte, nicht fuer den Workspace.",
-    ],
-    notes: [
-      "Ein leerer Name blockiert das Speichern bei sammlungsbasierten Eintraegen.",
-      "Presets werden intern wieder in Parameter- und Control-Datei aufgeteilt.",
-      "Fehlerhaftes JSON fuehrt zu einer klaren Rueckmeldung im Flash-Bereich.",
-    ],
-    context:
-      "Wenn du nicht sicher bist, welche Struktur erwartet wird, oeffne erst einen vorhandenen Eintrag als Vorlage.",
-  },
-  builder: {
-    eyebrow: "Builder",
-    title: "Embeddings mit dem Builder erstellen",
-    summary:
-      "Der Embedding-Builder fuehrt dich von Rohzahlen zu einer kompatiblen Embedding-Datei. So musst du die JSON-Struktur nicht komplett von Hand schreiben.",
-    steps: [
-      "Vergib einen Dateinamen oder Embedding-Namen und setze danach den Modellnamen.",
-      "Fuege Vektorwerte als JSON-Array oder als komma-, leerzeichen- oder zeilengetrennte Zahlen ein.",
-      "Klicke auf 'Modell hinzufuegen', pruefe die Vorschau und speichere erst danach das Embedding.",
-    ],
-    notes: [
-      "Mehrere Modelle koennen nacheinander in denselben Entwurf aufgenommen werden.",
-      "Die Vorschau zeigt genau das JSON, das spaeter gespeichert wird.",
-      "Beim Laden eines Embeddings wird der Builder automatisch mit den vorhandenen Daten befuellt.",
-    ],
-    context:
-      "Der Builder ist die sicherste Option, wenn du neue Embeddings erzeugen oder bestehende erweitern willst.",
-  },
-};
+const workbenchDescription = document.getElementById("workbenchDescription");
+const workbenchTabs = document.getElementById("workbenchTabs");
+const workbenchSections = document.getElementById("workbenchSections");
+const workbenchSummary = document.getElementById("workbenchSummary");
+const saveWorkbenchButton = document.getElementById("saveWorkbenchButton");
+const resetWorkbenchButton = document.getElementById("resetWorkbenchButton");
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
@@ -292,108 +102,45 @@ async function request(url, options = {}) {
     },
     ...options,
   });
-
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
-
   if (!response.ok) {
     const message = payload?.error || payload?.message || response.statusText;
     throw new Error(message);
   }
-
   return payload;
 }
 
 async function uploadRequest(url, files) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
-
   const response = await fetch(url, {
     method: "POST",
     body: formData,
   });
-
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
-
   if (!response.ok) {
     const message = payload?.error || payload?.message || response.statusText;
     throw new Error(message);
   }
-
   return payload;
 }
 
 function showFlash(message, isError = false) {
-  flashMessage.hidden = false;
-  flashMessage.className = isError ? "flash error" : "flash";
-  flashMessage.textContent = message;
+  globalFlash.hidden = false;
+  globalFlash.className = isError ? "global-flash error" : "global-flash";
+  globalFlash.textContent = message;
 }
 
 function clearFlash() {
-  flashMessage.hidden = true;
-  flashMessage.textContent = "";
-  flashMessage.className = "flash";
-}
-
-function createHelpListItems(target, items, ordered = false) {
-  target.innerHTML = "";
-  items.forEach((item) => {
-    const entry = document.createElement("li");
-    if (!ordered) {
-      entry.textContent = item;
-    } else {
-      const text = document.createElement("span");
-      text.textContent = item;
-      entry.appendChild(text);
-    }
-    target.appendChild(entry);
-  });
-}
-
-function updateHelpButtonState(topic) {
-  document.querySelectorAll("[data-help-topic]").forEach((element) => {
-    element.classList.toggle("is-active", element.dataset.helpTopic === topic);
-  });
-}
-
-function renderHelpTopic(topic) {
-  const nextTopic = HELP_TOPICS[topic] ? topic : "overview";
-  const entry = HELP_TOPICS[nextTopic];
-  state.helpTopic = nextTopic;
-  helpTopicEyebrow.textContent = entry.eyebrow;
-  helpTopicTitle.textContent = entry.title;
-  helpTopicSummary.textContent = entry.summary;
-  createHelpListItems(helpTopicSteps, entry.steps, true);
-  createHelpListItems(helpTopicNotes, entry.notes);
-  helpTopicContext.textContent = entry.context;
-  updateHelpButtonState(nextTopic);
-}
-
-function setHelpCollapsed(collapsed) {
-  state.helpCollapsed = collapsed;
-  helpPanel.classList.toggle("collapsed", collapsed);
-  helpPanelBody.hidden = collapsed;
-  helpToggleButton.textContent = collapsed ? "Hilfe anzeigen" : "Hilfe minimieren";
-  helpToggleButton.setAttribute("aria-expanded", String(!collapsed));
-}
-
-function focusHelpPanel() {
-  helpPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function showHelpTopic(topic, scrollIntoView = true) {
-  renderHelpTopic(topic);
-  if (state.helpCollapsed) {
-    setHelpCollapsed(false);
-  }
-  if (scrollIntoView) {
-    focusHelpPanel();
-  }
+  globalFlash.hidden = true;
+  globalFlash.textContent = "";
+  globalFlash.className = "global-flash";
 }
 
 function translateCollectionName(type) {
@@ -402,26 +149,24 @@ function translateCollectionName(type) {
     "job-exports": "Job-Export",
     presets: "Preset",
     embeddings: "Embedding",
-    workspace: "Arbeitsbereich",
+    workspace: "Workspace",
   };
   return labels[type] || type;
 }
 
 function getListElement(type) {
-  const mapping = {
+  return {
     jobs: jobsList,
     "job-exports": jobExportsList,
     presets: presetsList,
     embeddings: embeddingsList,
-  };
-  return mapping[type];
+  }[type];
 }
 
 function formatMeta(item) {
   if (item.invalid) {
     return "Ungueltiges JSON";
   }
-
   const bits = [];
   if (item.entryCount !== undefined) {
     bits.push(`${item.entryCount} Eintraege`);
@@ -430,7 +175,7 @@ function formatMeta(item) {
     bits.push(`${item.modelCount} Modelle`);
   }
   if (item.dimensions?.length) {
-    bits.push(`Dimensionen: ${item.dimensions.join(", ")}`);
+    bits.push(`Dim: ${item.dimensions.join(", ")}`);
   }
   if (item.targetFaceCount !== undefined) {
     bits.push(`${item.targetFaceCount} Zielgesichter`);
@@ -482,10 +227,25 @@ function renderAllLists() {
   renderList(embeddingsList, state.collections.embeddings, "embeddings");
 }
 
+function renderWorkspaceSummary(summary) {
+  if (!summary?.exists) {
+    workspaceSummary.textContent =
+      "Es wurde noch kein letzter Workspace gespeichert.";
+    return;
+  }
+  workspaceSummary.innerHTML = `
+    <strong>${summary.targetFaceCount}</strong> Zielgesichter<br />
+    <strong>${summary.inputFaceCount}</strong> Quellgesichter<br />
+    <strong>${summary.markerCount}</strong> Marker<br />
+    Aktualisiert: ${new Date(summary.modifiedAt).toLocaleString()}
+  `;
+}
+
 function renderStatus(status) {
   const quality = status.quality;
   const deploymentProfile = status.deploymentProfile || {};
   const runtimeProfile = status.runtimeProfile || {};
+
   if (quality) {
     statusBadge.textContent = `${quality.overallPercent}% Remote bereit`;
     statusSummaryEyebrow.textContent = "Projektstatus";
@@ -502,34 +262,22 @@ function renderStatus(status) {
               `<li class="${check.ok ? "is-complete" : "is-open"}">${check.ok ? "Erfuellt" : "Offen"}: ${check.label}</li>`
           )
           .join("");
-        const footer = area.remaining.length
-          ? `<p class="item-meta">Offen: ${area.remaining.join(", ")}</p>`
-          : '<p class="item-meta">Alle Kriterien fuer diesen Bereich sind erfuellt.</p>';
         return `
           <article class="status-area-card">
             <div class="status-area-head">
               <div>
-                <h3>${area.title}</h3>
+                <h4>${area.title}</h4>
                 <p class="panel-note">${area.summary}</p>
               </div>
               <span class="status-area-percent">${area.percent}%</span>
             </div>
             <ul class="status-check-list">${checks}</ul>
-            ${footer}
           </article>
         `;
       })
       .join("");
-  } else {
-    statusBadge.textContent = status.capabilities.browserUi ? "Web bereit" : "Eingeschraenkt";
-    statusSummaryEyebrow.textContent = "Projektstatus";
-    statusSummaryTitle.textContent = "Remote-GPU-Web-Konsole";
-    statusSummaryText.textContent = "Es liegen noch keine detaillierten Reifegrade vor.";
-    statusSummaryNote.textContent = "";
-    statusOverallPercent.textContent = "--";
-    statusOverallLabel.textContent = "Noch keine Bewertung";
-    statusAreas.innerHTML = "";
   }
+
   const cards = [
     ["Betriebsmodus", deploymentProfile.summary || "nicht erkannt"],
     ["Browser-Clients", (deploymentProfile.browserClients || []).join(", ") || "nicht erkannt"],
@@ -542,13 +290,12 @@ function renderStatus(status) {
     ["Starter-Einstieg", runtimeProfile.entryLabel || "nicht erkannt"],
     ["Kernpakete", runtimeProfile.packageLabel || "nicht erkannt"],
     ["FFmpeg", runtimeProfile.ffmpegLabel || status.binaries.ffmpeg || "nicht gefunden"],
-    ["FFplay", runtimeProfile.ffplayLabel || status.binaries.ffplay || "nicht gefunden"],
-    ["Git", runtimeProfile.gitLabel || status.binaries.git || "nicht gefunden"],
     ["Jobs", String(status.data.jobs)],
     ["Presets", String(status.data.presets)],
     ["Embeddings", String(status.data.embeddings || 0)],
     ["Browser-Pipeline", status.capabilities.headlessProcessingApi ? "aktiv" : "deaktiviert"],
   ];
+
   statusCards.innerHTML = cards
     .map(
       ([label, value]) => `
@@ -562,68 +309,161 @@ function renderStatus(status) {
 }
 
 function processingStatusLabel(status) {
-  const labels = {
-    idle: "Leerlauf",
-    starting: "Startet",
-    loading: "Laedt",
-    running: "Laeuft",
-    succeeded: "Erfolgreich",
-    failed: "Fehlgeschlagen",
-    stopping: "Stoppt",
-    stopped: "Gestoppt",
-  };
-  return labels[status] || status || "Unbekannt";
+  return (
+    {
+      idle: "Leerlauf",
+      starting: "Startet",
+      loading: "Laedt",
+      running: "Laeuft",
+      succeeded: "Erfolgreich",
+      failed: "Fehlgeschlagen",
+      stopping: "Stoppt",
+      stopped: "Gestoppt",
+    }[status] || status || "Unbekannt"
+  );
 }
 
 function updateProcessingActionState() {
   const selectedJobName =
     state.selection && state.selection.type === "jobs" ? state.selection.name : null;
   const isActive = Boolean(state.processing?.active);
-  const uploadReady = Boolean(state.browserWorkflow?.canRun);
   processingStartButton.disabled = !selectedJobName || isActive;
   processingStopButton.disabled = !isActive;
-  workflowRunButton.disabled = !uploadReady || isActive;
+  workflowRunButton.disabled = !state.browserWorkflow?.canRun || isActive;
   processingSelection.textContent = selectedJobName
     ? `Ausgewaehlter Job: ${selectedJobName}`
-    : "Bitte zuerst einen Job aus der Liste oeffnen.";
+    : "Bitte links einen Job auswaehlen oder direkt mit Uploads arbeiten.";
+}
+
+function revokePreviewUrls() {
+  if (state.previewUrls.target) {
+    URL.revokeObjectURL(state.previewUrls.target);
+  }
+  Object.values(state.previewUrls.sources).forEach((url) => URL.revokeObjectURL(url));
+  state.previewUrls = { target: null, sources: {} };
+}
+
+function setTargetPreviewFromInput(files) {
+  if (state.previewUrls.target) {
+    URL.revokeObjectURL(state.previewUrls.target);
+    state.previewUrls.target = null;
+  }
+  const file = files[0];
+  if (!file) {
+    return;
+  }
+  state.previewUrls.target = URL.createObjectURL(file);
+}
+
+function setSourcePreviewsFromInput(files) {
+  Object.values(state.previewUrls.sources).forEach((url) => URL.revokeObjectURL(url));
+  state.previewUrls.sources = {};
+  files.forEach((file) => {
+    state.previewUrls.sources[file.name] = URL.createObjectURL(file);
+  });
+}
+
+function createMediaThumb(entry, url) {
+  if (url && entry.fileType === "image") {
+    return `<img src="${url}" alt="${entry.name}" />`;
+  }
+  if (url && entry.fileType === "video") {
+    return `<video src="${url}" muted autoplay loop playsinline></video>`;
+  }
+  return `<div class="media-placeholder">${entry.fileType === "video" ? "VIDEO" : "IMAGE"}</div>`;
+}
+
+function renderTargetPreview(entry) {
+  if (!entry) {
+    targetMediaPreview.className = "media-preview empty";
+    targetMediaPreview.textContent = "Noch kein Zielmedium geladen.";
+    stageTargetPreview.className = "stage-preview empty";
+    stageTargetPreview.textContent = "Kein Preview verfuegbar.";
+    targetStageMeta.textContent = "Noch kein Zielmedium.";
+    return;
+  }
+
+  const previewMarkup = createMediaThumb(entry, state.previewUrls.target);
+  const meta = `${entry.name} • ${entry.fileType} • ${new Date(entry.modifiedAt).toLocaleString()}`;
+  targetMediaPreview.className = "media-preview";
+  targetMediaPreview.innerHTML = `
+    ${previewMarkup}
+    <div class="media-caption">
+      <strong>${entry.name}</strong>
+      <span>${entry.fileType}</span>
+    </div>
+  `;
+
+  stageTargetPreview.className = "stage-preview";
+  stageTargetPreview.innerHTML = `
+    ${previewMarkup}
+    <div class="stage-overlay">
+      <strong>${entry.name}</strong>
+      <span>${entry.fileType}</span>
+    </div>
+  `;
+  targetStageMeta.textContent = meta;
+}
+
+function renderSourcePreviews(entries = []) {
+  if (!entries.length) {
+    sourceFacePreviewList.className = "source-preview-list empty";
+    sourceFacePreviewList.textContent = "Noch keine Quellgesichter geladen.";
+    stageSourcePreview.className = "source-stage empty";
+    stageSourcePreview.textContent = "Noch keine Quellgesichter.";
+    sourceStageMeta.textContent = "Noch keine Quellen.";
+    return;
+  }
+
+  sourceFacePreviewList.className = "source-preview-list";
+  sourceFacePreviewList.innerHTML = entries
+    .map((entry) => {
+      const url = state.previewUrls.sources[entry.name];
+      return `
+        <article class="source-thumb">
+          ${createMediaThumb(entry, url)}
+          <div class="source-thumb-copy">
+            <strong>${entry.name}</strong>
+            <span>${entry.fileType}</span>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  stageSourcePreview.className = "source-stage";
+  stageSourcePreview.innerHTML = entries
+    .map((entry) => {
+      const url = state.previewUrls.sources[entry.name];
+      return `
+        <article class="source-stage-card">
+          ${createMediaThumb(entry, url)}
+          <strong>${entry.name}</strong>
+        </article>
+      `;
+    })
+    .join("");
+  sourceStageMeta.textContent = `${entries.length} Quellgesicht(er) geladen.`;
 }
 
 function renderBrowserWorkflow(payload) {
   state.browserWorkflow = payload;
-  const parts = [];
-  if (payload.targetMedia) {
-    parts.push(
-      `<div><strong>Zielmedium:</strong> ${payload.targetMedia.name} (${payload.targetMedia.fileType})</div>`
-    );
-  } else {
-    parts.push("<div><strong>Zielmedium:</strong> noch keines hochgeladen</div>");
-  }
+  renderTargetPreview(payload.targetMedia);
+  renderSourcePreviews(payload.sourceFaces || []);
 
-  if (payload.sourceFaces?.length) {
-    parts.push(
-      `<div><strong>Quellgesichter:</strong> ${payload.sourceFaces.length} Datei(en)</div>`
-    );
-    parts.push(
-      `<div>${payload.sourceFaces.map((entry) => entry.name).join(", ")}</div>`
-    );
-  } else {
-    parts.push("<div><strong>Quellgesichter:</strong> noch keine hochgeladen</div>");
-  }
-
-  parts.push(`<div><strong>Ausgabeordner:</strong> ${payload.outputFolder}</div>`);
-  parts.push(
-    `<div><strong>Strategie:</strong> Erstes erkanntes Quellgesicht auf alle Zielgesichter anwenden</div>`
-  );
-  parts.push(`<div>${payload.readyMessage}</div>`);
-  workflowSummary.innerHTML = parts.join("");
+  workflowSummary.innerHTML = `
+    <strong>Bereit:</strong> ${payload.canRun ? "Ja" : "Nein"}<br />
+    <strong>Ausgabe:</strong> ${payload.outputFolder}<br />
+    <strong>Strategie:</strong> Erstes Quellgesicht auf alle erkannten Zielgesichter<br />
+    ${payload.readyMessage}
+  `;
   updateProcessingActionState();
 }
 
 function renderProcessingStatus(payload) {
   state.processing = payload;
   processingBadge.textContent = processingStatusLabel(payload.status);
-  processingMessage.textContent =
-    payload.message || "Noch kein Job im Browser gestartet.";
+  processingMessage.textContent = payload.message || "Noch kein Lauf aktiv.";
 
   const meta = [];
   if (payload.jobName) {
@@ -639,8 +479,8 @@ function renderProcessingStatus(payload) {
     meta.push(`PID: ${payload.pid}`);
   }
   processingMeta.innerHTML = meta.length
-    ? meta.map((line) => `<div>${line}</div>`).join("")
-    : '<div class="item-meta">Noch keine Laufmetadaten vorhanden.</div>';
+    ? meta.map((line) => `<span>${line}</span>`).join("")
+    : '<span class="item-meta">Noch keine Laufmetadaten.</span>';
 
   const percent = payload.progress?.percent;
   if (Number.isFinite(percent)) {
@@ -653,24 +493,22 @@ function renderProcessingStatus(payload) {
     processingProgressValue.textContent = "";
   }
 
-  const outputParts = [];
+  const output = [];
   if (payload.outputPath) {
-    outputParts.push(`<div><strong>Ausgabe:</strong> ${payload.outputPath}</div>`);
+    output.push(`<div><strong>Ausgabe:</strong> ${payload.outputPath}</div>`);
   }
   if (payload.outputDownloadUrl && payload.outputExists) {
-    outputParts.push(
-      `<div><a class="ghost" href="${payload.outputDownloadUrl}" target="_blank" rel="noreferrer">Ausgabe herunterladen</a></div>`
+    output.push(
+      `<div><a class="ghost inline-link" href="${payload.outputDownloadUrl}" target="_blank" rel="noreferrer">Ausgabe herunterladen</a></div>`
     );
   }
   if (payload.lastMessage) {
-    outputParts.push(`<div><strong>Hinweis:</strong> ${payload.lastMessage}</div>`);
+    output.push(`<div><strong>Hinweis:</strong> ${payload.lastMessage}</div>`);
   }
-  processingOutput.innerHTML = outputParts.length
-    ? outputParts.join("")
+  processingOutput.innerHTML = output.length
+    ? output.join("")
     : '<div class="item-meta">Nach einem erfolgreichen Lauf erscheint hier der Ausgabepfad.</div>';
-
   processingLog.value = (payload.logTail || []).join("\n");
-  updateProcessingActionState();
 
   const shouldPoll = ["starting", "loading", "running", "stopping"].includes(
     payload.status
@@ -681,62 +519,251 @@ function renderProcessingStatus(payload) {
     }, 2500);
   }
   if (!shouldPoll && state.processingPollHandle) {
-    window.clearInterval(state.processingPollHandle);
+    clearInterval(state.processingPollHandle);
     state.processingPollHandle = null;
   }
+
+  updateProcessingActionState();
 }
 
-function renderWorkspaceSummary(summary) {
-  if (!summary.exists) {
-    workspaceSummary.textContent = "Es wurde noch kein letzter Arbeitsbereich gespeichert.";
-    return;
+function getWorkbenchValue(key) {
+  if (key in state.workbench.parameters) {
+    return state.workbench.parameters[key];
   }
-  workspaceSummary.innerHTML = `
-    <strong>${summary.targetFaceCount}</strong> Zielgesichter<br />
-    <strong>${summary.inputFaceCount}</strong> Quellgesichter<br />
-    <strong>${summary.markerCount}</strong> Marker<br />
-    Aktualisiert: ${new Date(summary.modifiedAt).toLocaleString()}
+  return state.workbench.control[key];
+}
+
+function matchesToggleExpression(expression, expected) {
+  const required = Boolean(expected);
+  return expression
+    .split("&")
+    .map((part) => part.trim())
+    .every((key) => Boolean(getWorkbenchValue(key)) === required);
+}
+
+function isControlVisible(control) {
+  if (control.parentToggle) {
+    const required = "requiredToggleValue" in control ? control.requiredToggleValue : true;
+    if (!matchesToggleExpression(control.parentToggle, required)) {
+      return false;
+    }
+  }
+  if (control.parentSelection) {
+    const value = getWorkbenchValue(control.parentSelection);
+    if (value !== control.requiredSelectionValue) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function formatControlValue(control, value) {
+  if (control.type === "toggle") {
+    return value ? "An" : "Aus";
+  }
+  if (control.type === "text") {
+    const text = String(value || "").trim();
+    if (!text) {
+      return "leer";
+    }
+    return text.length > 22 ? `${text.slice(0, 22)}...` : text;
+  }
+  if (control.type === "range" && typeof control.decimals === "number") {
+    return Number(value).toFixed(control.decimals);
+  }
+  return String(value);
+}
+
+function createWorkbenchInput(control, value) {
+  const inputId = `workbench-${control.scope}-${control.key}`;
+  if (control.type === "select") {
+    return `
+      <select id="${inputId}" data-control-key="${control.key}" data-control-scope="${control.scope}">
+        ${control.options
+          .map(
+            (option) =>
+              `<option value="${option}" ${option === value ? "selected" : ""}>${option}</option>`
+          )
+          .join("")}
+      </select>
+    `;
+  }
+  if (control.type === "toggle") {
+    return `
+      <label class="switch">
+        <input
+          id="${inputId}"
+          type="checkbox"
+          data-control-key="${control.key}"
+          data-control-scope="${control.scope}"
+          ${value ? "checked" : ""}
+        />
+        <span class="switch-ui"></span>
+      </label>
+    `;
+  }
+  if (control.type === "text") {
+    return `
+      <input
+        id="${inputId}"
+        type="text"
+        value="${String(value ?? "").replace(/"/g, "&quot;")}"
+        data-control-key="${control.key}"
+        data-control-scope="${control.scope}"
+      />
+    `;
+  }
+  return `
+    <div class="range-wrap">
+      <input
+        id="${inputId}"
+        type="range"
+        min="${control.min}"
+        max="${control.max}"
+        step="${control.step}"
+        value="${value}"
+        data-control-key="${control.key}"
+        data-control-scope="${control.scope}"
+      />
+      <input
+        class="range-number"
+        type="number"
+        min="${control.min}"
+        max="${control.max}"
+        step="${control.step}"
+        value="${value}"
+        data-range-mirror="${control.key}"
+        data-control-key="${control.key}"
+        data-control-scope="${control.scope}"
+      />
+    </div>
   `;
 }
 
-async function refreshCollection(type) {
-  const payload = await request(`/api/${type}`);
-  state.collections[type] = payload.items;
-  renderList(getListElement(type), payload.items, type);
+function renderWorkbench() {
+  const activeTab =
+    state.workbenchTabs.find((tab) => tab.id === state.activeWorkbenchTab) ||
+    state.workbenchTabs[0];
+  if (!activeTab) {
+    workbenchTabs.innerHTML = "";
+    workbenchSections.innerHTML = '<p class="panel-note">Keine Workbench-Daten geladen.</p>';
+    return;
+  }
+
+  state.activeWorkbenchTab = activeTab.id;
+  workbenchDescription.textContent = activeTab.description;
+  workbenchTabs.innerHTML = state.workbenchTabs
+    .map(
+      (tab) => `
+        <button
+          class="workbench-tab ${tab.id === activeTab.id ? "is-active" : ""}"
+          type="button"
+          data-workbench-tab="${tab.id}"
+        >
+          ${tab.label}
+        </button>
+      `
+    )
+    .join("");
+
+  workbenchSections.innerHTML = activeTab.sections
+    .map((section) => {
+      const controls = section.controls
+        .filter((control) => isControlVisible(control))
+        .map((control) => {
+          const value = getWorkbenchValue(control.key);
+          return `
+            <article class="control-card">
+              <div class="control-copy">
+                <div class="control-label-row">
+                  <label for="workbench-${control.scope}-${control.key}">${control.label}</label>
+                  <span class="control-value">${formatControlValue(control, value)}</span>
+                </div>
+                <p class="control-help">${control.help || ""}</p>
+              </div>
+              <div class="control-input">
+                ${createWorkbenchInput(control, value)}
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+
+      return `
+        <section class="control-section">
+          <div class="control-section-header">
+            <h3>${section.title}</h3>
+          </div>
+          <div class="control-grid">
+            ${controls || '<p class="panel-note">Fuer die aktuelle Auswahl sind hier keine Controls sichtbar.</p>'}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
+
+  const enabledParameters = Object.entries(state.workbench.parameters).filter(
+    ([, value]) => value === true
+  ).length;
+  workbenchSummary.innerHTML = `
+    <span><strong>${activeTab.label}</strong> aktiv</span>
+    <span>${Object.keys(state.workbench.parameters).length} Parameterwerte</span>
+    <span>${Object.keys(state.workbench.control).length} Control-Werte</span>
+    <span>${enabledParameters} Toggle(s) aktiviert</span>
+  `;
 }
 
-async function refreshWorkspaceSummary() {
-  const payload = await request("/api/workspaces/last");
-  renderWorkspaceSummary(payload.summary);
+function scheduleWorkbenchSave() {
+  if (state.workbenchSaveHandle) {
+    clearTimeout(state.workbenchSaveHandle);
+  }
+  state.workbenchSaveHandle = window.setTimeout(() => {
+    saveWorkbench(true).catch((error) => showFlash(error.message, true));
+  }, 500);
 }
 
-async function refreshStatus() {
-  const payload = await request("/api/status");
-  renderStatus(payload);
+function normalizeControlInputValue(control, input) {
+  if (control.type === "toggle") {
+    return Boolean(input.checked);
+  }
+  if (control.type === "range") {
+    return control.step && String(control.step).includes(".")
+      ? Number(input.value)
+      : Math.round(Number(input.value));
+  }
+  return input.value;
 }
 
-async function refreshProcessingStatus() {
-  const payload = await request("/api/processing/status");
-  renderProcessingStatus(payload);
+function controlDefinitionForElement(element) {
+  const tab = state.workbenchTabs.find((entry) => entry.id === state.activeWorkbenchTab);
+  if (!tab) {
+    return null;
+  }
+  for (const section of tab.sections) {
+    for (const control of section.controls) {
+      if (
+        control.key === element.dataset.controlKey &&
+        control.scope === element.dataset.controlScope
+      ) {
+        return control;
+      }
+    }
+  }
+  return null;
 }
 
-async function refreshBrowserWorkflow() {
-  const payload = await request("/api/browser-workflow");
-  renderBrowserWorkflow(payload);
+function setWorkbenchValue(scope, key, value) {
+  state.workbench[scope][key] = value;
 }
 
-async function refreshAll() {
-  clearFlash();
-  await Promise.all([
-    refreshStatus(),
-    refreshProcessingStatus(),
-    refreshBrowserWorkflow(),
-    refreshCollection("jobs"),
-    refreshCollection("job-exports"),
-    refreshCollection("presets"),
-    refreshCollection("embeddings"),
-    refreshWorkspaceSummary(),
-  ]);
+function setUtilityTab(tab) {
+  state.utilityTab = tab;
+  document.querySelectorAll("[data-utility-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.utilityTab === tab);
+  });
+  document.querySelectorAll("[data-utility-view]").forEach((view) => {
+    view.classList.toggle("is-active", view.dataset.utilityView === tab);
+  });
 }
 
 function selectEditor(type, name, data, subtitle) {
@@ -747,6 +774,7 @@ function selectEditor(type, name, data, subtitle) {
   jsonEditor.value = JSON.stringify(data, null, 2);
   saveButton.disabled = false;
   deleteButton.disabled = type === "workspace";
+  setUtilityTab("editor");
   renderAllLists();
   updateProcessingActionState();
 }
@@ -754,12 +782,11 @@ function selectEditor(type, name, data, subtitle) {
 function setDefaultEditorState() {
   editorTitle.textContent = "JSON-Editor";
   editorSubtitle.textContent =
-    "Waehle einen Job, ein Preset, ein Embedding, einen Job-Export oder den letzten Arbeitsbereich aus.";
+    "Oeffne links einen Job, ein Preset, ein Embedding, einen Export oder den Workspace.";
   nameInput.value = "";
   jsonEditor.value = "";
   saveButton.disabled = true;
   deleteButton.disabled = true;
-  updateProcessingActionState();
 }
 
 function draftPayload() {
@@ -774,7 +801,6 @@ function draftPayload() {
 function renderEmbeddingDraft() {
   const models = Object.entries(state.embeddingDraft.embedding_store);
   builderModelList.innerHTML = "";
-
   if (!models.length) {
     const empty = document.createElement("li");
     empty.className = "item-meta";
@@ -807,11 +833,7 @@ function renderEmbeddingDraft() {
 }
 
 function resetEmbeddingBuilder() {
-  state.embeddingDraft = {
-    fileName: "",
-    name: "",
-    embedding_store: {},
-  };
+  state.embeddingDraft = { fileName: "", name: "", embedding_store: {} };
   builderFileName.value = "";
   builderEmbeddingName.value = "";
   builderModelName.value = "";
@@ -825,12 +847,10 @@ function hydrateBuilderFromPayload(fileName, payload) {
     payload.length !== 1 ||
     !payload[0] ||
     typeof payload[0] !== "object" ||
-    !payload[0].embedding_store ||
-    typeof payload[0].embedding_store !== "object"
+    !payload[0].embedding_store
   ) {
     return;
   }
-
   state.embeddingDraft = {
     fileName,
     name: String(payload[0].name || fileName),
@@ -841,12 +861,12 @@ function hydrateBuilderFromPayload(fileName, payload) {
       ])
     ),
   };
-
   builderFileName.value = state.embeddingDraft.fileName;
   builderEmbeddingName.value = state.embeddingDraft.name;
   builderModelName.value = "";
   builderVectorInput.value = "";
   renderEmbeddingDraft();
+  setUtilityTab("builder");
 }
 
 function parseVectorValues(raw) {
@@ -854,7 +874,6 @@ function parseVectorValues(raw) {
   if (!source) {
     throw new Error("Bitte mindestens einen Zahlenwert fuer den Embedding-Vektor eingeben.");
   }
-
   let values;
   if (source.startsWith("[")) {
     values = JSON.parse(source);
@@ -867,11 +886,9 @@ function parseVectorValues(raw) {
       .map((part) => part.trim())
       .filter(Boolean);
   }
-
   if (!values.length) {
     throw new Error("Der Embedding-Vektor enthaelt keine Werte.");
   }
-
   return values.map((value) => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {
@@ -881,17 +898,9 @@ function parseVectorValues(raw) {
   });
 }
 
-function getBuilderFileName() {
-  return builderFileName.value.trim() || builderEmbeddingName.value.trim();
-}
-
-function getBuilderEmbeddingName() {
-  return builderEmbeddingName.value.trim() || builderFileName.value.trim();
-}
-
 function ensureDraftReady() {
-  const fileName = getBuilderFileName();
-  const embeddingName = getBuilderEmbeddingName();
+  const fileName = builderFileName.value.trim() || builderEmbeddingName.value.trim();
+  const embeddingName = builderEmbeddingName.value.trim() || builderFileName.value.trim();
   if (!fileName) {
     throw new Error("Bitte einen Dateinamen oder Embedding-Namen angeben.");
   }
@@ -899,9 +908,8 @@ function ensureDraftReady() {
     throw new Error("Bitte einen Embedding-Namen angeben.");
   }
   if (!Object.keys(state.embeddingDraft.embedding_store).length) {
-    throw new Error("Bitte mindestens ein Modell zum Embedding hinzufuegen.");
+    throw new Error("Bitte mindestens ein Modell hinzufuegen.");
   }
-
   state.embeddingDraft.fileName = fileName;
   state.embeddingDraft.name = embeddingName;
 }
@@ -913,21 +921,19 @@ function addModelToDraft() {
     if (!modelName) {
       throw new Error("Bitte einen Modellnamen eingeben.");
     }
-
-    const values = parseVectorValues(builderVectorInput.value);
-    state.embeddingDraft.fileName = getBuilderFileName();
-    state.embeddingDraft.name = getBuilderEmbeddingName();
-    state.embeddingDraft.embedding_store[modelName] = values;
-
-    if (!builderEmbeddingName.value.trim() && builderFileName.value.trim()) {
-      builderEmbeddingName.value = builderFileName.value.trim();
-      state.embeddingDraft.name = builderEmbeddingName.value.trim();
-    }
-
-    builderVectorInput.value = "";
+    state.embeddingDraft.embedding_store[modelName] = parseVectorValues(
+      builderVectorInput.value
+    );
+    state.embeddingDraft.fileName =
+      builderFileName.value.trim() || state.embeddingDraft.fileName;
+    state.embeddingDraft.name =
+      builderEmbeddingName.value.trim() ||
+      builderFileName.value.trim() ||
+      state.embeddingDraft.name;
     builderModelName.value = "";
+    builderVectorInput.value = "";
     renderEmbeddingDraft();
-    showFlash(`Modell "${modelName}" zum Entwurf hinzugefuegt.`);
+    showFlash(`Modell "${modelName}" hinzugefuegt.`);
   } catch (error) {
     showFlash(error.message, true);
   }
@@ -937,21 +943,64 @@ async function saveDraftEmbedding() {
   clearFlash();
   try {
     ensureDraftReady();
-    const fileName = state.embeddingDraft.fileName;
-    const payload = draftPayload();
-
-    await request(`/api/embeddings/${encodeURIComponent(fileName)}`, {
+    await request(`/api/embeddings/${encodeURIComponent(state.embeddingDraft.fileName)}`, {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(draftPayload()),
     });
-
-    showFlash(`Embedding "${fileName}" gespeichert.`);
+    showFlash(`Embedding "${state.embeddingDraft.fileName}" gespeichert.`);
     await refreshCollection("embeddings");
     await refreshStatus();
-    await loadItem("embeddings", fileName);
   } catch (error) {
     showFlash(error.message, true);
   }
+}
+
+async function refreshCollection(type) {
+  const payload = await request(`/api/${type}`);
+  state.collections[type] = payload.items;
+  renderList(getListElement(type), payload.items, type);
+}
+
+async function refreshWorkspaceSummary() {
+  const payload = await request("/api/workspaces/last");
+  renderWorkspaceSummary(payload.summary);
+}
+
+async function refreshStatus() {
+  renderStatus(await request("/api/status"));
+}
+
+async function refreshProcessingStatus() {
+  renderProcessingStatus(await request("/api/processing/status"));
+}
+
+async function refreshBrowserWorkflow() {
+  renderBrowserWorkflow(await request("/api/browser-workflow"));
+}
+
+async function refreshWorkbench() {
+  const payload = await request("/api/workbench");
+  state.workbenchTabs = payload.tabs || [];
+  state.workbenchDefaults = payload.defaults || { control: {}, parameters: {} };
+  state.workbench = payload.state || { control: {}, parameters: {} };
+  state.activeWorkbenchTab =
+    state.activeWorkbenchTab || state.workbenchTabs[0]?.id || null;
+  renderWorkbench();
+}
+
+async function refreshAll() {
+  clearFlash();
+  await Promise.all([
+    refreshStatus(),
+    refreshProcessingStatus(),
+    refreshBrowserWorkflow(),
+    refreshWorkbench(),
+    refreshCollection("jobs"),
+    refreshCollection("job-exports"),
+    refreshCollection("presets"),
+    refreshCollection("embeddings"),
+    refreshWorkspaceSummary(),
+  ]);
 }
 
 async function loadItem(type, name) {
@@ -963,26 +1012,21 @@ async function loadItem(type, name) {
         "workspace",
         "last_workspace",
         payload.data,
-        "Dieser Inhalt wird im Projektwurzelverzeichnis als last_workspace.json gespeichert."
+        "Dieser Inhalt wird als last_workspace.json im Projekt gespeichert."
       );
-      renderHelpTopic("workspace");
       return;
     }
-
     const payload = await request(`/api/${type}/${encodeURIComponent(name)}`);
     const subtitleMap = {
-      jobs: "Job-Definition fuer die Warteschlange der Desktop-Jobverwaltung.",
-      "job-exports":
-        "Eigenstaendiger Job-Export, kompatibel mit dem aktuellen Workspace-Serializer.",
-      presets: "Preset-Paar aus Parameter-JSON und Steuerungs-JSON.",
-      embeddings:
-        "Kompatible Embedding-Datei fuer den Desktop-Import mit name und embedding_store.",
+      jobs: "Job-Definition fuer die Desktop-Queue und den Browser-Start.",
+      "job-exports": "Eigenstaendiger Job-Export im aktuellen Workspace-Format.",
+      presets: "Preset-Paar aus Parameter- und Control-JSON.",
+      embeddings: "Embedding-Datei fuer die Source-Face-Zuordnung.",
     };
     selectEditor(type, name, payload, subtitleMap[type]);
     if (type === "embeddings") {
       hydrateBuilderFromPayload(name, payload);
     }
-    renderHelpTopic(type);
   } catch (error) {
     showFlash(error.message, true);
   }
@@ -992,27 +1036,22 @@ async function saveCurrentSelection() {
   if (!state.selection) {
     return;
   }
-
   clearFlash();
   try {
     const payload = JSON.parse(jsonEditor.value || "{}");
     const name = nameInput.value.trim();
-
     if (state.selection.type === "workspace") {
       await request("/api/workspaces/last", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      state.selection.name = "last_workspace";
-      showFlash("Letzter Arbeitsbereich gespeichert.");
+      showFlash("Workspace gespeichert.");
       await refreshWorkspaceSummary();
       return;
     }
-
     if (!name) {
       throw new Error("Der Name darf nicht leer sein.");
     }
-
     let body = payload;
     if (state.selection.type === "presets") {
       body = {
@@ -1020,7 +1059,6 @@ async function saveCurrentSelection() {
         control: payload.control || {},
       };
     }
-
     await request(`/api/${state.selection.type}/${encodeURIComponent(name)}`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -1039,66 +1077,41 @@ async function deleteCurrentSelection() {
   if (!state.selection || state.selection.type === "workspace") {
     return;
   }
-
   clearFlash();
   try {
     const currentType = state.selection.type;
     const currentName = state.selection.name;
-    await request(
-      `/api/${currentType}/${encodeURIComponent(currentName)}`,
-      {
-        method: "DELETE",
-      }
-    );
+    await request(`/api/${currentType}/${encodeURIComponent(currentName)}`, {
+      method: "DELETE",
+    });
     showFlash(`${translateCollectionName(currentType)} geloescht.`);
     state.selection = null;
     setDefaultEditorState();
     await refreshCollection(currentType);
     await refreshStatus();
-    if (
-      currentType === "embeddings" &&
-      state.embeddingDraft.fileName === currentName
-    ) {
-      resetEmbeddingBuilder();
-    }
   } catch (error) {
     showFlash(error.message, true);
   }
 }
 
-async function startSelectedJob() {
-  if (!state.selection || state.selection.type !== "jobs") {
-    showFlash("Bitte zuerst einen gespeicherten Job aus der Liste oeffnen.", true);
-    return;
-  }
-
-  clearFlash();
-  try {
-    const payload = await request(
-      `/api/processing/jobs/${encodeURIComponent(state.selection.name)}/start`,
-      {
-        method: "POST",
-      }
-    );
-    renderHelpTopic("processing");
-    renderProcessingStatus(payload);
-    showFlash(`Browser-Verarbeitung fuer "${state.selection.name}" gestartet.`);
-  } catch (error) {
-    showFlash(error.message, true);
+async function saveWorkbench(silent = false) {
+  state.workbenchSaveHandle = null;
+  const payload = await request("/api/workbench", {
+    method: "POST",
+    body: JSON.stringify(state.workbench),
+  });
+  state.workbench = payload.state;
+  renderWorkbench();
+  if (!silent) {
+    showFlash("Workbench-Draft gespeichert.");
   }
 }
 
-async function stopProcessing() {
-  clearFlash();
-  try {
-    const payload = await request("/api/processing/stop", {
-      method: "POST",
-    });
-    renderProcessingStatus(payload);
-    showFlash("Browser-Verarbeitung gestoppt.");
-  } catch (error) {
-    showFlash(error.message, true);
-  }
+function resetWorkbench() {
+  state.workbench = JSON.parse(JSON.stringify(state.workbenchDefaults));
+  renderWorkbench();
+  scheduleWorkbenchSave();
+  showFlash("Workbench auf Default-Werte zurueckgesetzt.");
 }
 
 async function uploadTargetMedia() {
@@ -1108,9 +1121,9 @@ async function uploadTargetMedia() {
     if (!files.length) {
       throw new Error("Bitte zuerst ein Zielmedium auswaehlen.");
     }
+    setTargetPreviewFromInput(files);
     const payload = await uploadRequest("/api/browser-workflow/target", files);
     renderBrowserWorkflow(payload.state);
-    renderHelpTopic("processing");
     showFlash(`Zielmedium "${payload.saved.name}" hochgeladen.`);
   } catch (error) {
     showFlash(error.message, true);
@@ -1124,9 +1137,9 @@ async function uploadSourceFaces() {
     if (!files.length) {
       throw new Error("Bitte zuerst mindestens ein Quellgesicht auswaehlen.");
     }
+    setSourcePreviewsFromInput(files);
     const payload = await uploadRequest("/api/browser-workflow/sources", files);
     renderBrowserWorkflow(payload.state);
-    renderHelpTopic("processing");
     showFlash(`${payload.saved.length} Quellgesicht(er) hochgeladen.`);
   } catch (error) {
     showFlash(error.message, true);
@@ -1136,15 +1149,17 @@ async function uploadSourceFaces() {
 async function resetWorkflow() {
   clearFlash();
   try {
-    const payload = await request("/api/browser-workflow/reset", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
+    revokePreviewUrls();
     targetUploadInput.value = "";
     sourceUploadInput.value = "";
     detectionFrameInput.value = "0";
-    renderBrowserWorkflow(payload);
-    showFlash("Direkt-Upload-Zustand zurueckgesetzt.");
+    renderBrowserWorkflow(
+      await request("/api/browser-workflow/reset", {
+        method: "POST",
+        body: JSON.stringify({}),
+      })
+    );
+    showFlash("Direktlauf-Zustand geleert.");
   } catch (error) {
     showFlash(error.message, true);
   }
@@ -1157,67 +1172,84 @@ async function runUploadedWorkflow() {
     const detectionFrame = Number.isFinite(parsedFrame)
       ? Math.max(0, Math.floor(parsedFrame))
       : 0;
-    const payload = await request("/api/browser-workflow/run", {
-      method: "POST",
-      body: JSON.stringify({ detectionFrame }),
-    });
-    renderHelpTopic("processing");
-    renderProcessingStatus(payload);
+    renderProcessingStatus(
+      await request("/api/browser-workflow/run", {
+        method: "POST",
+        body: JSON.stringify({
+          detectionFrame,
+          workbench: state.workbench,
+        }),
+      })
+    );
     showFlash("Browser-Direktlauf gestartet.");
   } catch (error) {
     showFlash(error.message, true);
   }
 }
 
-document.getElementById("refreshAllButton").addEventListener("click", refreshAll);
-openHelpButton.addEventListener("click", () => showHelpTopic("overview"));
-helpOverviewButton.addEventListener("click", () => showHelpTopic("overview", false));
-processingRefreshButton.addEventListener("click", () => {
-  renderHelpTopic("processing");
-  refreshProcessingStatus().catch((error) => showFlash(error.message, true));
-});
-workflowResetButton.addEventListener("click", resetWorkflow);
-processingStartButton.addEventListener("click", startSelectedJob);
-processingStopButton.addEventListener("click", stopProcessing);
-uploadTargetButton.addEventListener("click", uploadTargetMedia);
-uploadSourcesButton.addEventListener("click", uploadSourceFaces);
-workflowRunButton.addEventListener("click", runUploadedWorkflow);
-helpToggleButton.addEventListener("click", () => {
-  const nextCollapsed = !state.helpCollapsed;
-  setHelpCollapsed(nextCollapsed);
-  if (!nextCollapsed) {
-    focusHelpPanel();
+async function startSelectedJob() {
+  if (!state.selection || state.selection.type !== "jobs") {
+    showFlash("Bitte zuerst einen gespeicherten Job auswaehlen.", true);
+    return;
   }
+  clearFlash();
+  try {
+    renderProcessingStatus(
+      await request(`/api/processing/jobs/${encodeURIComponent(state.selection.name)}/start`, {
+        method: "POST",
+      })
+    );
+    showFlash(`Browser-Verarbeitung fuer "${state.selection.name}" gestartet.`);
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+async function stopProcessing() {
+  clearFlash();
+  try {
+    renderProcessingStatus(
+      await request("/api/processing/stop", {
+        method: "POST",
+      })
+    );
+    showFlash("Browser-Verarbeitung gestoppt.");
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+document.getElementById("refreshAllButton").addEventListener("click", () => {
+  refreshAll().catch((error) => showFlash(error.message, true));
+});
+document.querySelectorAll("[data-refresh]").forEach((button) => {
+  button.addEventListener("click", () => {
+    refreshCollection(button.dataset.refresh).catch((error) =>
+      showFlash(error.message, true)
+    );
+  });
 });
 document.getElementById("loadWorkspaceButton").addEventListener("click", () => {
   loadItem("workspace", "last_workspace");
 });
-document.addEventListener("click", (event) => {
-  const trigger = event.target.closest("[data-help-topic]");
-  if (!trigger) {
-    return;
-  }
-  showHelpTopic(trigger.dataset.helpTopic);
+
+uploadTargetButton.addEventListener("click", uploadTargetMedia);
+uploadSourcesButton.addEventListener("click", uploadSourceFaces);
+workflowResetButton.addEventListener("click", resetWorkflow);
+workflowRunButton.addEventListener("click", runUploadedWorkflow);
+processingRefreshButton.addEventListener("click", () => {
+  refreshProcessingStatus().catch((error) => showFlash(error.message, true));
 });
-document.querySelectorAll("[data-refresh]").forEach((button) => {
-  button.addEventListener("click", () =>
-    refreshCollection(button.getAttribute("data-refresh"))
-  );
-});
+processingStartButton.addEventListener("click", startSelectedJob);
+processingStopButton.addEventListener("click", stopProcessing);
+
 saveButton.addEventListener("click", saveCurrentSelection);
 deleteButton.addEventListener("click", deleteCurrentSelection);
 
 builderAddModelButton.addEventListener("click", addModelToDraft);
-builderAddModelButton.addEventListener("click", () => {
-  renderHelpTopic("builder");
-});
-builderSaveButton.addEventListener("click", () => {
-  renderHelpTopic("builder");
-  saveDraftEmbedding();
-});
+builderSaveButton.addEventListener("click", saveDraftEmbedding);
 builderResetButton.addEventListener("click", () => {
   clearFlash();
-  renderHelpTopic("builder");
   resetEmbeddingBuilder();
 });
 builderModelList.addEventListener("click", (event) => {
@@ -1229,21 +1261,68 @@ builderModelList.addEventListener("click", (event) => {
   renderEmbeddingDraft();
 });
 
-builderFileName.addEventListener("input", () => {
-  state.embeddingDraft.fileName = builderFileName.value.trim();
-  if (!builderEmbeddingName.value.trim()) {
-    state.embeddingDraft.name = state.embeddingDraft.fileName;
-  }
-  renderEmbeddingDraft();
+document.querySelectorAll("[data-utility-tab]").forEach((button) => {
+  button.addEventListener("click", () => setUtilityTab(button.dataset.utilityTab));
 });
 
-builderEmbeddingName.addEventListener("input", () => {
-  state.embeddingDraft.name = builderEmbeddingName.value.trim();
-  renderEmbeddingDraft();
+workbenchTabs.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-workbench-tab]");
+  if (!button) {
+    return;
+  }
+  state.activeWorkbenchTab = button.dataset.workbenchTab;
+  renderWorkbench();
 });
+
+workbenchSections.addEventListener("input", (event) => {
+  const input = event.target.closest("[data-control-key]");
+  if (!input) {
+    return;
+  }
+  const control = controlDefinitionForElement(input);
+  if (!control) {
+    return;
+  }
+  const value = normalizeControlInputValue(control, input);
+  setWorkbenchValue(input.dataset.controlScope, input.dataset.controlKey, value);
+
+  const mirrors = workbenchSections.querySelectorAll(
+    `[data-range-mirror="${input.dataset.controlKey}"]`
+  );
+  mirrors.forEach((mirror) => {
+    if (mirror !== input) {
+      mirror.value = value;
+    }
+  });
+
+  const ranges = workbenchSections.querySelectorAll(
+    `input[type="range"][data-control-key="${input.dataset.controlKey}"]`
+  );
+  ranges.forEach((range) => {
+    if (range !== input) {
+      range.value = value;
+    }
+  });
+
+  const valueLabel = input
+    .closest(".control-card")
+    ?.querySelector(".control-value");
+  if (valueLabel) {
+    valueLabel.textContent = formatControlValue(control, value);
+  }
+
+  if (control.type === "toggle" || control.type === "select") {
+    renderWorkbench();
+  }
+  scheduleWorkbenchSave();
+});
+
+saveWorkbenchButton.addEventListener("click", () => {
+  saveWorkbench(false).catch((error) => showFlash(error.message, true));
+});
+resetWorkbenchButton.addEventListener("click", resetWorkbench);
 
 setDefaultEditorState();
 resetEmbeddingBuilder();
-renderHelpTopic("overview");
-setHelpCollapsed(true);
+setUtilityTab("status");
 refreshAll().catch((error) => showFlash(error.message, true));

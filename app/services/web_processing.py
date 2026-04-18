@@ -193,8 +193,14 @@ def start_job(job_name: str) -> dict[str, Any]:
         return _normalize_status(initial_status)
 
 
-def start_upload_run(detection_frame: int = 0) -> dict[str, Any]:
-    request_payload = browser_workflow.build_run_request(detection_frame=detection_frame)
+def start_upload_run(
+    detection_frame: int = 0,
+    workbench_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_payload = browser_workflow.build_run_request(
+        detection_frame=detection_frame,
+        workbench_state=workbench_state,
+    )
 
     with _LOCK:
         active = _active_process()

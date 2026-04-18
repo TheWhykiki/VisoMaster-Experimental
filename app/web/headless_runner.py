@@ -24,6 +24,7 @@ from PySide6 import QtCore, QtWidgets
 
 import qdarktheme
 
+import app.helpers.miscellaneous as misc_helpers
 from app.helpers.paths import resolve_project_path, project_path
 from app.ui.core.proxy_style import ProxyStyle
 from app.ui import main_ui
@@ -94,6 +95,40 @@ class Runner:
         self.progress_timer: QtCore.QTimer | None = None
         self.start_watchdog_timer: QtCore.QTimer | None = None
         self._write_status()
+
+    def _workbench_state(self) -> dict[str, Any]:
+        payload = self.request_payload.get("workbench")
+        return payload if isinstance(payload, dict) else {}
+
+    def _apply_workbench_control(self) -> None:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+
+        control_values = self._workbench_state().get("control", {})
+        if not isinstance(control_values, dict):
+            return
+
+        for key, value in control_values.items():
+            self.main_window.control[key] = value
+
+    def _apply_workbench_parameters(self) -> None:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+
+        parameter_values = self._workbench_state().get("parameters", {})
+        if not isinstance(parameter_values, dict):
+            return
+
+        self.main_window.current_widget_parameters = misc_helpers.ParametersDict(
+            parameter_values.copy(),
+            self.main_window.default_parameters,
+        )
+
+        for face_id in list(self.main_window.target_faces.keys()):
+            self.main_window.parameters[face_id] = misc_helpers.ParametersDict(
+                parameter_values.copy(),
+                self.main_window.default_parameters,
+            )
 
     def _write_status(self, **updates: Any) -> None:
         self.status.update(updates)
@@ -216,11 +251,11 @@ class Runner:
             raise RuntimeError("Der Ausgabeordner fuer den Browser-Direktlauf fehlt.")
         Path(output_folder).mkdir(parents=True, exist_ok=True)
 
+        self._apply_workbench_control()
         self._load_target_media(target_media_path)
         self._load_input_faces(input_face_paths)
 
         self.main_window.control["OpenOutputToggle"] = False
-        self.main_window.control["AutoSaveWorkspaceToggle"] = False
         self.main_window.control["OutputMediaFolder"] = output_folder
         self.main_window.outputFolderLineEdit.setText(output_folder)
         self.main_window.job_marker_pairs = []
@@ -248,6 +283,7 @@ class Runner:
                 "Im Zielmedium konnte kein Zielgesicht erkannt werden. Bitte pruefe das Medium oder waehle bei Videos spaeter einen gueltigen Erkennungsframe."
             )
 
+        self._apply_workbench_parameters()
         primary_input_face = list(self.main_window.input_faces.values())[0]
         for target_face in self.main_window.target_faces.values():
             target_face.assigned_input_faces = {

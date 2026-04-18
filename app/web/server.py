@@ -12,7 +12,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from app.services import browser_workflow, storage, system_info, web_processing
+from app.services import (
+    browser_workflow,
+    storage,
+    system_info,
+    web_processing,
+    web_workbench,
+)
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -44,6 +50,9 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/browser-workflow":
             self._write_json(HTTPStatus.OK, browser_workflow.current_state())
+            return
+        if path == "/api/workbench":
+            self._write_json(HTTPStatus.OK, web_workbench.schema_payload())
             return
         if path == "/api/processing/output":
             output_path = web_processing.current_output_path()
@@ -135,7 +144,10 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 return
             try:
                 detection_frame = int(payload.get("detectionFrame", 0))
-                response = web_processing.start_upload_run(detection_frame=detection_frame)
+                response = web_processing.start_upload_run(
+                    detection_frame=detection_frame,
+                    workbench_state=payload.get("workbench"),
+                )
             except ValueError as exc:
                 self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
@@ -180,6 +192,19 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                     {
                         "message": "Letzter Arbeitsbereich gespeichert.",
                         "path": str(saved_path),
+                    },
+                )
+                return
+            if path == "/api/workbench":
+                payload = self._require_json_object(
+                    payload, "Der Workbench-Status muss als JSON-Objekt gesendet werden."
+                )
+                state = web_workbench.write_state(payload)
+                self._write_json(
+                    HTTPStatus.OK,
+                    {
+                        "message": "Workbench-Draft gespeichert.",
+                        "state": state,
                     },
                 )
                 return
