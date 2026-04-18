@@ -1,7 +1,7 @@
 const state = {
   selection: null,
   helpTopic: "overview",
-  helpCollapsed: false,
+  helpCollapsed: true,
   processingPollHandle: null,
   browserWorkflow: null,
   collections: {
@@ -1245,5 +1245,5 @@ builderEmbeddingName.addEventListener("input", () => {
 setDefaultEditorState();
 resetEmbeddingBuilder();
 renderHelpTopic("overview");
-setHelpCollapsed(false);
+setHelpCollapsed(true);
 refreshAll().catch((error) => showFlash(error.message, true));

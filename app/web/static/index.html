@@ -3,483 +3,464 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VisoMaster Web-Konsole</title>
+    <title>VisoMaster Swap Workbench</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <div class="page-shell">
       <header class="hero">
-        <div>
-          <p class="eyebrow">Browser-Konsole</p>
+        <div class="hero-copy-block">
+          <p class="eyebrow">Swap Workbench</p>
           <h1>VisoMaster Web-Konsole</h1>
           <p class="hero-copy">
-            Headless-Zugriff auf Jobs, Presets, Embeddings und den
-            Arbeitsbereichsstatus. Gespeicherte Jobs lassen sich jetzt direkt
-            aus dem Browser in der bestehenden Desktop-Pipeline starten und
-            ueber das Netzwerk beobachten.
+            Browser-Steuerung fuer Face-Swap-Laeufe mit Fokus auf Job-Auswahl,
+            Zielmedium, Quellgesichtern und sauberem Remote-Start auf dem GPU-Host.
           </p>
         </div>
         <div class="hero-actions">
           <button id="refreshAllButton" class="primary">Aktualisieren</button>
-          <button id="openHelpButton" class="ghost" type="button">Schnellhilfe</button>
+          <button id="openHelpButton" class="ghost" type="button">Hilfe</button>
           <a class="ghost" href="/api/status" target="_blank" rel="noreferrer">API-Status</a>
         </div>
       </header>
 
       <main class="layout">
-        <section id="helpPanel" class="panel help-panel">
-          <div class="panel-header">
-            <div>
-              <div class="section-title-row">
-                <h2>Dokumentation & Hilfe</h2>
-                <button
-                  class="help-trigger"
-                  type="button"
-                  data-help-topic="overview"
-                  data-tooltip="Oeffnet die Einstiegshilfe fuer die Web-Konsole."
-                  aria-label="Hilfe zur Web-Konsole anzeigen"
-                >
-                  ?
-                </button>
-              </div>
-              <p class="panel-note">
-                Fuehre die Maus ueber die Fragezeichen oder klicke darauf, um direkt zur passenden
-                Erlaeuterung zu springen.
-              </p>
-            </div>
-            <div class="editor-actions">
-              <button id="helpOverviewButton" class="ghost" type="button">Uebersicht</button>
-              <button id="helpToggleButton" class="mini" type="button" aria-expanded="true">
-                Hilfe minimieren
-              </button>
-            </div>
-          </div>
-
-          <div id="helpPanelBody" class="help-panel-body">
-            <div class="help-quick-grid">
-              <button class="help-card" type="button" data-help-topic="overview">
-                <strong>Schnellstart</strong>
-                <span>Finde die wichtigsten Bereiche und typische Einstiege in 3 Schritten.</span>
-              </button>
-              <button class="help-card" type="button" data-help-topic="status">
-                <strong>Systemstatus</strong>
-                <span>Verstehe, ob die Web-Konsole startklar ist und welche Daten verfuegbar sind.</span>
-              </button>
-              <button class="help-card" type="button" data-help-topic="jobs">
-                <strong>Jobs & Exporte</strong>
-                <span>Nutze gespeicherte Job-Dateien, pruefe Exporte und oeffne Eintraege im Editor.</span>
-              </button>
-              <button class="help-card" type="button" data-help-topic="processing">
-                <strong>Browser-Swap</strong>
-                <span>Starte einen gespeicherten Job im Browser und verfolge Status, Log und Ausgabe.</span>
-              </button>
-              <button class="help-card" type="button" data-help-topic="presets">
-                <strong>Presets</strong>
-                <span>Verwalte Parameter- und Control-JSON gemeinsam als wiederverwendbares Preset.</span>
-              </button>
-              <button class="help-card" type="button" data-help-topic="workspace">
-                <strong>Arbeitsbereich</strong>
-                <span>Bearbeite den zuletzt gespeicherten Projektzustand ohne viele Zwischenschritte.</span>
-              </button>
-              <button class="help-card" type="button" data-help-topic="builder">
-                <strong>Embedding-Builder</strong>
-                <span>Lege Modellvektoren an, pruefe die Vorschau und speichere kompatible Embeddings.</span>
-              </button>
-            </div>
-
-            <article class="help-article">
-              <p id="helpTopicEyebrow" class="eyebrow help-eyebrow">Schnellstart</p>
-              <h3 id="helpTopicTitle">So findest du dich schnell zurecht</h3>
-              <p id="helpTopicSummary" class="help-summary"></p>
-
-              <div class="help-columns">
-                <section class="help-column">
-                  <h4>In wenigen Klicks</h4>
-                  <ol id="helpTopicSteps" class="help-list ordered"></ol>
-                </section>
-
-                <section class="help-column">
-                  <h4>Darauf achten</h4>
-                  <ul id="helpTopicNotes" class="help-list"></ul>
-                </section>
-              </div>
-
-              <p id="helpTopicContext" class="panel-note help-context"></p>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel status-panel">
-          <div class="panel-header">
-            <div class="section-title-row">
-              <h2>Systemstatus</h2>
-              <button
-                class="help-trigger"
-                type="button"
-                data-help-topic="status"
-                data-tooltip="Erklaert Laufzeit, erkannte Tools und Datenzaehler."
-                aria-label="Hilfe zum Systemstatus anzeigen"
-              >
-                ?
-              </button>
-            </div>
-            <span id="statusBadge" class="badge">Lädt</span>
-          </div>
-          <div class="status-overview">
-            <div class="status-summary-copy">
-              <p id="statusSummaryEyebrow" class="eyebrow status-summary-eyebrow">Projektstatus</p>
-              <h3 id="statusSummaryTitle">Remote-GPU-Web-Konsole</h3>
-              <p id="statusSummaryText" class="panel-note">
-                Der aktuelle Hybrid-Meilenstein wird geladen.
-              </p>
-              <p id="statusSummaryNote" class="panel-note"></p>
-            </div>
-            <article class="status-overall-card">
-              <span>Gesamtgrad</span>
-              <strong id="statusOverallPercent">0%</strong>
-              <small id="statusOverallLabel">Wird berechnet</small>
-            </article>
-          </div>
-          <div id="statusAreas" class="status-areas"></div>
-          <p class="panel-note status-runtime-note">
-            Laufzeit-Checks und Projektdaten werden darunter live aus der aktuellen Umgebung gelesen.
-          </p>
-          <div id="statusCards" class="status-cards"></div>
-        </section>
-
-        <section class="panel processing-panel">
-          <div class="panel-header">
-            <div>
-              <div class="section-title-row">
-                <h2>Browser-Verarbeitung</h2>
-                <button
-                  class="help-trigger"
-                  type="button"
-                  data-help-topic="processing"
-                  data-tooltip="Startet einen gespeicherten Job ueber die Desktop-Pipeline und zeigt den Laufstatus an."
-                  aria-label="Hilfe zur Browser-Verarbeitung anzeigen"
-                >
-                  ?
-                </button>
-              </div>
-              <p class="panel-note">
-                Wähle links einen gespeicherten Job aus und starte ihn dann hier. Die Original-GUI bleibt davon unberührt.
-              </p>
-            </div>
-            <div class="editor-actions">
-              <button id="processingRefreshButton" class="ghost" type="button">Status neu laden</button>
-              <button id="workflowResetButton" class="ghost" type="button">Uploads zurücksetzen</button>
-              <button id="processingStopButton" class="danger" type="button" disabled>Stoppen</button>
-              <button id="processingStartButton" class="primary" type="button" disabled>Gewählten Job starten</button>
-            </div>
-          </div>
-
-          <div class="processing-setup-grid">
-            <article class="processing-card">
-              <div class="collection-title-row">
-                <h3>Direkt-Upload ohne Job</h3>
-              </div>
-              <p class="panel-note">
-                Fuer den Schnellstart ohne gespeicherten Job: Zielmedium hochladen, Quellgesicht hochladen und dann direkt starten.
-              </p>
-
-              <div class="builder-grid processing-upload-grid">
-                <label class="field">
-                  <span>Zielmedium</span>
-                  <input id="targetUploadInput" type="file" accept="image/*,video/*" />
-                </label>
-
-                <label class="field">
-                  <span>Quellgesicht(er)</span>
-                  <input id="sourceUploadInput" type="file" accept="image/*" multiple />
-                </label>
-
-                <label class="field">
-                  <span>Erkennungsframe</span>
-                  <input id="detectionFrameInput" type="number" min="0" step="1" value="0" />
-                </label>
-              </div>
-
-              <div class="editor-actions processing-upload-actions">
-                <button id="uploadTargetButton" class="ghost" type="button">Zielmedium hochladen</button>
-                <button id="uploadSourcesButton" class="ghost" type="button">Quellgesichter hochladen</button>
-                <button id="workflowRunButton" class="primary" type="button" disabled>Direkt-Upload starten</button>
-              </div>
-            </article>
-
-            <article class="processing-card">
-              <div class="collection-title-row">
-                <h3>Aktueller Upload-Stand</h3>
-              </div>
-              <div id="workflowSummary" class="processing-output"></div>
-            </article>
-          </div>
-
-          <div class="processing-grid">
-            <article class="processing-card">
-              <div class="collection-title-row">
-                <h3>Aktueller Lauf</h3>
-                <span id="processingBadge" class="badge">Leerlauf</span>
-              </div>
-              <p id="processingMessage" class="panel-note">
-                Noch kein Job im Browser gestartet.
-              </p>
-              <div id="processingMeta" class="processing-meta"></div>
-              <div id="processingProgress" class="processing-progress" hidden>
-                <div class="processing-progress-bar">
-                  <span id="processingProgressValue"></span>
-                </div>
-              </div>
-            </article>
-
-            <article class="processing-card">
-              <div class="collection-title-row">
-                <h3>Auswahl & Ausgabe</h3>
-              </div>
-              <p id="processingSelection" class="panel-note">
-                Bitte zuerst einen Job aus der Liste öffnen.
-              </p>
-              <div id="processingOutput" class="processing-output"></div>
-            </article>
-          </div>
-
-          <label class="field processing-log-field">
-            <span>Runner-Log</span>
-            <textarea id="processingLog" class="processing-log" spellcheck="false" readonly></textarea>
-          </label>
-        </section>
-
-        <section class="panel collection-panel">
-          <div class="panel-header">
-            <div>
-              <div class="section-title-row">
-                <h2>Projektdaten</h2>
-                <button
-                  class="help-trigger"
-                  type="button"
-                  data-help-topic="collections"
-                  data-tooltip="Zeigt, wie Jobs, Presets, Embeddings und Workspace zusammenhaengen."
-                  aria-label="Hilfe zu den Projektdaten anzeigen"
-                >
-                  ?
-                </button>
-              </div>
-              <span class="panel-note">Eintrag auswaehlen, um sein JSON zu pruefen oder zu bearbeiten.</span>
-            </div>
-          </div>
-
-          <div class="collection-grid">
-            <article class="collection-card">
-              <div class="collection-title-row">
+        <aside class="workspace-column left-rail">
+          <section class="panel collection-panel rail-panel">
+            <div class="panel-header">
+              <div>
                 <div class="section-title-row">
-                  <h3>Jobs</h3>
+                  <h2>Swap Quellen</h2>
                   <button
                     class="help-trigger"
                     type="button"
-                    data-help-topic="jobs"
-                    data-tooltip="Jobs sind Arbeitsauftraege fuer die Desktop-Verarbeitung."
-                    aria-label="Hilfe zu Jobs anzeigen"
+                    data-help-topic="collections"
+                    data-tooltip="Jobs, Embeddings, Presets und Arbeitsbereich fuer den aktuellen Lauf."
+                    aria-label="Hilfe zu den Projektdaten anzeigen"
                   >
                     ?
                   </button>
                 </div>
-                <button data-refresh="jobs" class="mini">Neu laden</button>
+                <span class="panel-note">
+                  Waehle zuerst Job, Embedding oder Workspace. Das ist die linke Arbeitsseite wie im Desktop-Tool.
+                </span>
               </div>
-              <ul id="jobsList" class="item-list"></ul>
-            </article>
+            </div>
 
-            <article class="collection-card">
-              <div class="collection-title-row">
+            <div class="collection-grid">
+              <article class="collection-card collection-card-accent">
+                <div class="collection-title-row">
+                  <div class="section-title-row">
+                    <h3>Jobs</h3>
+                    <button
+                      class="help-trigger"
+                      type="button"
+                      data-help-topic="jobs"
+                      data-tooltip="Gespeicherte Swap-Jobs fuer direkte Browser-Starts."
+                      aria-label="Hilfe zu Jobs anzeigen"
+                    >
+                      ?
+                    </button>
+                  </div>
+                  <button data-refresh="jobs" class="mini">Neu laden</button>
+                </div>
+                <ul id="jobsList" class="item-list"></ul>
+              </article>
+
+              <article class="collection-card">
+                <div class="collection-title-row">
+                  <div class="section-title-row">
+                    <h3>Embeddings</h3>
+                    <button
+                      class="help-trigger"
+                      type="button"
+                      data-help-topic="embeddings"
+                      data-tooltip="Kompatible Embeddings fuer Quellgesichter."
+                      aria-label="Hilfe zu Embeddings anzeigen"
+                    >
+                      ?
+                    </button>
+                  </div>
+                  <button data-refresh="embeddings" class="mini">Neu laden</button>
+                </div>
+                <ul id="embeddingsList" class="item-list compact-list"></ul>
+              </article>
+
+              <article class="collection-card">
+                <div class="collection-title-row">
+                  <div class="section-title-row">
+                    <h3>Presets</h3>
+                    <button
+                      class="help-trigger"
+                      type="button"
+                      data-help-topic="presets"
+                      data-tooltip="Preset-Paare fuer wiederkehrende Swap-Parameter."
+                      aria-label="Hilfe zu Presets anzeigen"
+                    >
+                      ?
+                    </button>
+                  </div>
+                  <button data-refresh="presets" class="mini">Neu laden</button>
+                </div>
+                <ul id="presetsList" class="item-list compact-list"></ul>
+              </article>
+
+              <article class="collection-card">
+                <div class="collection-title-row">
+                  <div class="section-title-row">
+                    <h3>Job-Exporte</h3>
+                    <button
+                      class="help-trigger"
+                      type="button"
+                      data-help-topic="job-exports"
+                      data-tooltip="Exportierte Jobs fuer Austausch oder Ruecksicherung."
+                      aria-label="Hilfe zu Job-Exporten anzeigen"
+                    >
+                      ?
+                    </button>
+                  </div>
+                  <button data-refresh="job-exports" class="mini">Neu laden</button>
+                </div>
+                <ul id="jobExportsList" class="item-list compact-list"></ul>
+              </article>
+
+              <article class="collection-card">
+                <div class="collection-title-row">
+                  <div class="section-title-row">
+                    <h3>Letzter Arbeitsbereich</h3>
+                    <button
+                      class="help-trigger"
+                      type="button"
+                      data-help-topic="workspace"
+                      data-tooltip="Zuletzt gespeicherter Projektzustand fuer schnellen Wiedereinstieg."
+                      aria-label="Hilfe zum letzten Arbeitsbereich anzeigen"
+                    >
+                      ?
+                    </button>
+                  </div>
+                  <button id="loadWorkspaceButton" class="mini">Oeffnen</button>
+                </div>
+                <div id="workspaceSummary" class="workspace-summary"></div>
+              </article>
+            </div>
+          </section>
+        </aside>
+
+        <section class="workspace-column center-stage">
+          <section class="panel processing-panel main-panel">
+            <div class="panel-header">
+              <div>
                 <div class="section-title-row">
-                  <h3>Job-Exporte</h3>
+                  <h2>Swap Session</h2>
                   <button
                     class="help-trigger"
                     type="button"
-                    data-help-topic="job-exports"
-                    data-tooltip="Erklaert portable Exportdateien fuer Jobs."
-                    aria-label="Hilfe zu Job-Exporten anzeigen"
+                    data-help-topic="processing"
+                    data-tooltip="Direkte Browser-Verarbeitung ueber die bestehende Swap-Pipeline."
+                    aria-label="Hilfe zur Browser-Verarbeitung anzeigen"
                   >
                     ?
                   </button>
                 </div>
-                <button data-refresh="job-exports" class="mini">Neu laden</button>
+                <p class="panel-note">
+                  Links Job oder Embeddings waehlen, hier Ziel und Quelle laden und danach den Lauf starten.
+                </p>
               </div>
-              <ul id="jobExportsList" class="item-list"></ul>
-            </article>
+              <div class="editor-actions processing-toolbar">
+                <button id="processingRefreshButton" class="ghost" type="button">Status neu laden</button>
+                <button id="workflowResetButton" class="ghost" type="button">Uploads zuruecksetzen</button>
+                <button id="processingStopButton" class="danger" type="button" disabled>Stoppen</button>
+                <button id="processingStartButton" class="primary" type="button" disabled>Job starten</button>
+              </div>
+            </div>
 
-            <article class="collection-card">
-              <div class="collection-title-row">
-                <div class="section-title-row">
-                  <h3>Presets</h3>
-                  <button
-                    class="help-trigger"
-                    type="button"
-                    data-help-topic="presets"
-                    data-tooltip="Presets speichern Parameter- und Steuerungswerte gemeinsam."
-                    aria-label="Hilfe zu Presets anzeigen"
-                  >
-                    ?
-                  </button>
+            <div class="processing-stage">
+              <article class="processing-card processing-card-primary">
+                <div class="collection-title-row">
+                  <h3>Live Laufstatus</h3>
+                  <span id="processingBadge" class="badge">Leerlauf</span>
                 </div>
-                <button data-refresh="presets" class="mini">Neu laden</button>
-              </div>
-              <ul id="presetsList" class="item-list"></ul>
-            </article>
-
-            <article class="collection-card">
-              <div class="collection-title-row">
-                <div class="section-title-row">
-                  <h3>Embeddings</h3>
-                  <button
-                    class="help-trigger"
-                    type="button"
-                    data-help-topic="embeddings"
-                    data-tooltip="Erklaert Embedding-Dateien und deren Modelle."
-                    aria-label="Hilfe zu Embeddings anzeigen"
-                  >
-                    ?
-                  </button>
+                <p id="processingSelection" class="processing-selection">
+                  Bitte zuerst einen Job aus der Liste oeffnen.
+                </p>
+                <p id="processingMessage" class="panel-note">
+                  Noch kein Job im Browser gestartet.
+                </p>
+                <div id="processingMeta" class="processing-meta"></div>
+                <div id="processingProgress" class="processing-progress" hidden>
+                  <div class="processing-progress-bar">
+                    <span id="processingProgressValue"></span>
+                  </div>
                 </div>
-                <button data-refresh="embeddings" class="mini">Neu laden</button>
-              </div>
-              <ul id="embeddingsList" class="item-list"></ul>
-            </article>
+                <div id="processingOutput" class="processing-output"></div>
+              </article>
 
-            <article class="collection-card">
-              <div class="collection-title-row">
-                <div class="section-title-row">
-                  <h3>Letzter Arbeitsbereich</h3>
-                  <button
-                    class="help-trigger"
-                    type="button"
-                    data-help-topic="workspace"
-                    data-tooltip="Zeigt, was im letzten Arbeitsbereich gespeichert wird."
-                    aria-label="Hilfe zum letzten Arbeitsbereich anzeigen"
-                  >
-                    ?
-                  </button>
+              <article class="processing-card">
+                <div class="collection-title-row">
+                  <h3>Direktlauf</h3>
+                  <span class="panel-note">Ohne gespeicherten Job</span>
                 </div>
-                <button id="loadWorkspaceButton" class="mini">Öffnen</button>
-              </div>
-              <div id="workspaceSummary" class="workspace-summary"></div>
-            </article>
-          </div>
-        </section>
+                <div class="processing-upload-grid">
+                  <label class="field">
+                    <span>Zielmedium</span>
+                    <input id="targetUploadInput" type="file" accept="image/*,video/*" />
+                  </label>
 
-        <section class="panel editor-panel">
-          <div class="panel-header">
-            <div>
-              <div class="section-title-row">
-                <h2 id="editorTitle">JSON-Editor</h2>
-                <button
-                  class="help-trigger"
-                  type="button"
-                  data-help-topic="editor"
-                  data-tooltip="Erklaert Speichern, Loeschen und den JSON-Aufbau."
-                  aria-label="Hilfe zum JSON-Editor anzeigen"
-                >
-                  ?
-                </button>
-              </div>
-              <p id="editorSubtitle" class="panel-note">
-                Wähle einen Job, ein Preset, ein Embedding, einen Job-Export oder den letzten Arbeitsbereich aus.
-              </p>
+                  <label class="field">
+                    <span>Quellgesicht(er)</span>
+                    <input id="sourceUploadInput" type="file" accept="image/*" multiple />
+                  </label>
+
+                  <label class="field">
+                    <span>Erkennungsframe</span>
+                    <input id="detectionFrameInput" type="number" min="0" step="1" value="0" />
+                  </label>
+                </div>
+                <div class="editor-actions processing-upload-actions">
+                  <button id="uploadTargetButton" class="ghost" type="button">Ziel laden</button>
+                  <button id="uploadSourcesButton" class="ghost" type="button">Quellen laden</button>
+                  <button id="workflowRunButton" class="primary" type="button" disabled>Direkt starten</button>
+                </div>
+                <div id="workflowSummary" class="processing-output workflow-summary"></div>
+              </article>
             </div>
-            <div class="editor-actions">
-              <button id="saveButton" class="primary" disabled>Speichern</button>
-              <button id="deleteButton" class="danger" disabled>Löschen</button>
-            </div>
-          </div>
 
-          <label class="field">
-            <span>Name</span>
-            <input id="nameInput" type="text" placeholder="Name des Eintrags" />
-          </label>
-
-          <label class="field">
-            <span>Inhalt</span>
-            <textarea id="jsonEditor" spellcheck="false"></textarea>
-          </label>
-
-          <div id="flashMessage" class="flash" hidden></div>
-        </section>
-
-        <section class="panel embedding-builder-panel">
-          <div class="panel-header">
-            <div>
-              <div class="section-title-row">
-                <h2>Embedding-Builder</h2>
-                <button
-                  class="help-trigger"
-                  type="button"
-                  data-help-topic="builder"
-                  data-tooltip="Fuehrt durch Dateiname, Modellvektoren und Speichern."
-                  aria-label="Hilfe zum Embedding-Builder anzeigen"
-                >
-                  ?
-                </button>
-              </div>
-              <p class="panel-note">
-                Zahlenwerte einfuegen, Modell hinterlegen und als kompatible
-                Embedding-Datei speichern.
-              </p>
-            </div>
-            <div class="editor-actions">
-              <button id="builderResetButton" class="ghost" type="button">Zurücksetzen</button>
-              <button id="builderSaveButton" class="primary" type="button">Embedding speichern</button>
-            </div>
-          </div>
-
-          <div class="builder-grid">
-            <label class="field">
-              <span>Dateiname</span>
-              <input id="builderFileName" type="text" placeholder="z. B. mein_embedding" />
+            <label class="field processing-log-field">
+              <span>Runner-Log</span>
+              <textarea id="processingLog" class="processing-log" spellcheck="false" readonly></textarea>
             </label>
+          </section>
 
-            <label class="field">
-              <span>Embedding-Name</span>
-              <input id="builderEmbeddingName" type="text" placeholder="Anzeigename im Tool" />
-            </label>
+          <section id="helpPanel" class="panel help-panel">
+            <div class="panel-header">
+              <div>
+                <div class="section-title-row">
+                  <h2>Dokumentation & Hilfe</h2>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="overview"
+                    data-tooltip="Oeffnet die Einstiegshilfe fuer die Web-Konsole."
+                    aria-label="Hilfe zur Web-Konsole anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
+                <p class="panel-note">
+                  Die Hilfe ist bewusst eingeklappt, damit der Swap-Workflow im Vordergrund bleibt.
+                </p>
+              </div>
+              <div class="editor-actions">
+                <button id="helpOverviewButton" class="ghost" type="button">Uebersicht</button>
+                <button id="helpToggleButton" class="mini" type="button" aria-expanded="false">
+                  Hilfe anzeigen
+                </button>
+              </div>
+            </div>
 
-            <label class="field">
-              <span>Modellname</span>
-              <input id="builderModelName" type="text" placeholder="z. B. Inswapper128ArcFace" />
-            </label>
-          </div>
+            <div id="helpPanelBody" class="help-panel-body">
+              <div class="help-quick-grid">
+                <button class="help-card" type="button" data-help-topic="overview">
+                  <strong>Schnellstart</strong>
+                  <span>Finde die wichtigsten Swap-Einstiege in wenigen Schritten.</span>
+                </button>
+                <button class="help-card" type="button" data-help-topic="status">
+                  <strong>Host Status</strong>
+                  <span>Pruefe Runtime, Netzwerkzugriff und Projektbereitschaft.</span>
+                </button>
+                <button class="help-card" type="button" data-help-topic="jobs">
+                  <strong>Jobs</strong>
+                  <span>Oeffne gespeicherte Jobs und starte sie direkt im Browser.</span>
+                </button>
+                <button class="help-card" type="button" data-help-topic="processing">
+                  <strong>Browser Swap</strong>
+                  <span>Beobachte Laufstatus, Fortschritt und Ausgabe in einer Ansicht.</span>
+                </button>
+                <button class="help-card" type="button" data-help-topic="presets">
+                  <strong>Presets</strong>
+                  <span>Verwalte Parameter- und Control-JSON fuer wiederkehrende Setups.</span>
+                </button>
+                <button class="help-card" type="button" data-help-topic="builder">
+                  <strong>Embedding Builder</strong>
+                  <span>Baue oder erweitere Embeddings ohne manuelles Rohformat.</span>
+                </button>
+              </div>
 
-          <label class="field">
-            <span>Vektorwerte</span>
-            <textarea
-              id="builderVectorInput"
-              class="builder-textarea"
-              spellcheck="false"
-              placeholder="Zahlen als JSON-Array, komma- oder zeilengetrennt einfuegen"
-            ></textarea>
-          </label>
+              <article class="help-article">
+                <p id="helpTopicEyebrow" class="eyebrow help-eyebrow">Schnellstart</p>
+                <h3 id="helpTopicTitle">So findest du dich schnell zurecht</h3>
+                <p id="helpTopicSummary" class="help-summary"></p>
 
-          <div class="builder-toolbar">
-            <p class="panel-note">
-              Mit "Modell hinzufügen" kannst du mehrere Modellvektoren zu einem
-              Embedding zusammenstellen.
+                <div class="help-columns">
+                  <section class="help-column">
+                    <h4>In wenigen Klicks</h4>
+                    <ol id="helpTopicSteps" class="help-list ordered"></ol>
+                  </section>
+
+                  <section class="help-column">
+                    <h4>Darauf achten</h4>
+                    <ul id="helpTopicNotes" class="help-list"></ul>
+                  </section>
+                </div>
+
+                <p id="helpTopicContext" class="panel-note help-context"></p>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <aside class="workspace-column right-rail">
+          <section class="panel status-panel rail-panel">
+            <div class="panel-header">
+              <div class="section-title-row">
+                <h2>Host & Session</h2>
+                <button
+                  class="help-trigger"
+                  type="button"
+                  data-help-topic="status"
+                  data-tooltip="Erklaert Laufzeit, Host-Rolle und Datenbereitschaft."
+                  aria-label="Hilfe zum Systemstatus anzeigen"
+                >
+                  ?
+                </button>
+              </div>
+              <span id="statusBadge" class="badge">Laedt</span>
+            </div>
+            <div class="status-overview">
+              <div class="status-summary-copy">
+                <p id="statusSummaryEyebrow" class="eyebrow status-summary-eyebrow">Projektstatus</p>
+                <h3 id="statusSummaryTitle">Remote-GPU-Web-Konsole</h3>
+                <p id="statusSummaryText" class="panel-note">
+                  Der aktuelle Remote-Meilenstein wird geladen.
+                </p>
+                <p id="statusSummaryNote" class="panel-note"></p>
+              </div>
+              <article class="status-overall-card">
+                <span>Gesamtgrad</span>
+                <strong id="statusOverallPercent">0%</strong>
+                <small id="statusOverallLabel">Wird berechnet</small>
+              </article>
+            </div>
+            <div id="statusAreas" class="status-areas"></div>
+            <p class="panel-note status-runtime-note">
+              Host-Runtime, URL-Zugriff und Projektdaten werden live ausgelesen.
             </p>
-            <button id="builderAddModelButton" class="mini" type="button">Modell hinzufügen</button>
-          </div>
+            <div id="statusCards" class="status-cards"></div>
+          </section>
 
-          <div class="builder-preview-grid">
-            <article class="builder-card">
-              <div class="collection-title-row">
-                <h3>Aktuelle Modelle</h3>
-                <span id="builderStats" class="item-meta">Noch kein Modell hinzugefügt.</span>
+          <section class="panel editor-panel rail-panel">
+            <div class="panel-header">
+              <div>
+                <div class="section-title-row">
+                  <h2 id="editorTitle">JSON-Editor</h2>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="editor"
+                    data-tooltip="Erklaert Speichern, Loeschen und den JSON-Aufbau."
+                    aria-label="Hilfe zum JSON-Editor anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
+                <p id="editorSubtitle" class="panel-note">
+                  Oeffne links einen Job, ein Preset, ein Embedding, einen Export oder den letzten Arbeitsbereich.
+                </p>
               </div>
-              <ul id="builderModelList" class="item-list compact-list"></ul>
-            </article>
+              <div class="editor-actions">
+                <button id="saveButton" class="primary" disabled>Speichern</button>
+                <button id="deleteButton" class="danger" disabled>Loeschen</button>
+              </div>
+            </div>
 
-            <label class="field builder-card">
-              <span>JSON-Vorschau</span>
-              <textarea id="builderPreview" class="builder-preview" spellcheck="false" readonly></textarea>
+            <label class="field">
+              <span>Name</span>
+              <input id="nameInput" type="text" placeholder="Name des Eintrags" />
             </label>
-          </div>
-        </section>
+
+            <label class="field">
+              <span>Inhalt</span>
+              <textarea id="jsonEditor" spellcheck="false"></textarea>
+            </label>
+
+            <div id="flashMessage" class="flash" hidden></div>
+          </section>
+
+          <section class="panel embedding-builder-panel rail-panel">
+            <div class="panel-header">
+              <div>
+                <div class="section-title-row">
+                  <h2>Embedding Builder</h2>
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    data-help-topic="builder"
+                    data-tooltip="Fuehrt durch Dateiname, Modellvektoren und Speichern."
+                    aria-label="Hilfe zum Embedding-Builder anzeigen"
+                  >
+                    ?
+                  </button>
+                </div>
+                <p class="panel-note">
+                  Quellvektoren schnell bauen oder bestehende Embeddings fuer Swap-Laeufe anpassen.
+                </p>
+              </div>
+              <div class="editor-actions">
+                <button id="builderResetButton" class="ghost" type="button">Zuruecksetzen</button>
+                <button id="builderSaveButton" class="primary" type="button">Embedding speichern</button>
+              </div>
+            </div>
+
+            <div class="builder-grid">
+              <label class="field">
+                <span>Dateiname</span>
+                <input id="builderFileName" type="text" placeholder="z. B. mein_embedding" />
+              </label>
+
+              <label class="field">
+                <span>Embedding-Name</span>
+                <input id="builderEmbeddingName" type="text" placeholder="Anzeigename im Tool" />
+              </label>
+
+              <label class="field">
+                <span>Modellname</span>
+                <input id="builderModelName" type="text" placeholder="z. B. Inswapper128ArcFace" />
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Vektorwerte</span>
+              <textarea
+                id="builderVectorInput"
+                class="builder-textarea"
+                spellcheck="false"
+                placeholder="Zahlen als JSON-Array, komma- oder zeilengetrennt einfuegen"
+              ></textarea>
+            </label>
+
+            <div class="builder-toolbar">
+              <p class="panel-note">
+                Mehrere Modelle koennen in einem Embedding zusammengefuehrt werden.
+              </p>
+              <button id="builderAddModelButton" class="mini" type="button">Modell hinzufuegen</button>
+            </div>
+
+            <div class="builder-preview-grid">
+              <article class="builder-card">
+                <div class="collection-title-row">
+                  <h3>Aktuelle Modelle</h3>
+                  <span id="builderStats" class="item-meta">Noch kein Modell hinzugefuegt.</span>
+                </div>
+                <ul id="builderModelList" class="item-list compact-list"></ul>
+              </article>
+
+              <label class="field builder-card">
+                <span>JSON-Vorschau</span>
+                <textarea id="builderPreview" class="builder-preview" spellcheck="false" readonly></textarea>
+              </label>
+            </div>
+          </section>
+        </aside>
       </main>
     </div>
 
