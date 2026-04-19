@@ -380,6 +380,13 @@ def generate_found_faces(
 
         manifest_path = browser_workflow.found_faces_manifest_path()
         manifest = _read_json_file(manifest_path)
+        faces = manifest.get("faces") if isinstance(manifest, dict) else None
+        if not isinstance(faces, list) or not faces:
+            return {
+                "message": "Im aktuellen Detection Frame wurden keine Zielgesichter gefunden.",
+                "state": browser_workflow.current_state(),
+            }
+
         detected = browser_workflow.register_detected_faces(manifest)
         return {
             "message": f'{detected["count"]} Zielgesicht(er) gefunden.',

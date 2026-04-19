@@ -312,7 +312,7 @@ class Runner:
         self._apply_workbench_control()
         self._load_target_media(target_media_path)
         normalized_frame = self._set_detection_frame(detection_frame)
-        self._detect_target_faces()
+        self._detect_target_faces(allow_empty=True)
         return normalized_frame
 
     def _set_detection_frame(self, detection_frame: int) -> int:
@@ -334,15 +334,18 @@ class Runner:
             return detection_frame
         return 0
 
-    def _detect_target_faces(self) -> None:
+    def _detect_target_faces(self, allow_empty: bool = False) -> int:
         if not self.main_window:
             raise RuntimeError("MainWindow ist nicht initialisiert.")
         card_actions.find_target_faces(self.main_window)
         QtWidgets.QApplication.processEvents()
         if not self.main_window.target_faces:
+            if allow_empty:
+                return 0
             raise RuntimeError(
                 "Im Zielmedium konnte kein Zielgesicht erkannt werden. Bitte pruefe das Medium oder waehle bei Videos spaeter einen gueltigen Erkennungsframe."
             )
+        return len(self.main_window.target_faces)
 
     def _save_found_faces_manifest(self, output_dir: str | Path, frame_index: int) -> str:
         if not self.main_window:
@@ -371,9 +374,6 @@ class Runner:
                     "targetName": Path(self.request_payload.get("targetMediaPath", "")).name,
                 }
             )
-
-        if not faces_payload:
-            raise RuntimeError("Die gefundenen Zielgesichter konnten nicht gespeichert werden.")
 
         manifest_path_raw = str(
             self.request_payload.get("foundFacesManifestPath", "")
