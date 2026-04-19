@@ -1,9 +1,9 @@
-import { ResolvedComponentItemConfig } from './config/resolved-config';
-import { ApiError, BindError } from './errors/external-error';
-import { AssertError, UnexpectedUndefinedError } from './errors/internal-error';
-import { i18nStrings } from './utils/i18n-strings';
-import { deepExtendValue, ensureElementPositionAbsolute, numberToPixels, setElementDisplayVisibility, setElementHeight, setElementWidth } from './utils/utils';
-import { VirtualLayout } from './virtual-layout';
+import { ResolvedComponentItemConfig } from './config/resolved-config.js';
+import { ApiError, BindError } from './errors/external-error.js';
+import { AssertError, UnexpectedUndefinedError } from './errors/internal-error.js';
+import { i18nStrings } from './utils/i18n-strings.js';
+import { deepExtendValue, ensureElementPositionAbsolute, numberToPixels, setElementDisplayVisibility, setElementHeight, setElementWidth } from './utils/utils.js';
+import { VirtualLayout } from './virtual-layout.js';
 /** @public */
 export class GoldenLayout extends VirtualLayout {
     /** @internal */

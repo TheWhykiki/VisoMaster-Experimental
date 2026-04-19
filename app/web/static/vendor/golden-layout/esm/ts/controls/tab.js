@@ -1,5 +1,5 @@
-import { UnexpectedUndefinedError } from '../errors/internal-error';
-import { DragListener } from '../utils/drag-listener';
+import { UnexpectedUndefinedError } from '../errors/internal-error.js';
+import { DragListener } from '../utils/drag-listener.js';
 /**
  * Represents an individual tab within a Stack's header
  * @public

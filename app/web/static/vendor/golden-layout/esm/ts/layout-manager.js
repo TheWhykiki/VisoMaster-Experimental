@@ -1,23 +1,23 @@
-import { ItemConfig, LayoutConfig } from './config/config';
-import { ResolvedItemConfig, ResolvedLayoutConfig, ResolvedRootItemConfig } from "./config/resolved-config";
-import { BrowserPopout } from './controls/browser-popout';
-import { DragProxy } from './controls/drag-proxy';
-import { DragSource } from './controls/drag-source';
-import { DropTargetIndicator } from './controls/drop-target-indicator';
-import { TransitionIndicator } from './controls/transition-indicator';
-import { ConfigurationError } from './errors/external-error';
-import { AssertError, UnexpectedNullError, UnexpectedUndefinedError, UnreachableCaseError } from './errors/internal-error';
-import { ComponentItem } from './items/component-item';
-import { ContentItem } from './items/content-item';
-import { GroundItem } from './items/ground-item';
-import { RowOrColumn } from './items/row-or-column';
-import { Stack } from './items/stack';
-import { ConfigMinifier } from './utils/config-minifier';
-import { EventEmitter } from './utils/event-emitter';
-import { EventHub } from './utils/event-hub';
-import { I18nStrings, i18nStrings } from './utils/i18n-strings';
-import { ItemType, ResponsiveMode } from './utils/types';
-import { getElementWidthAndHeight, removeFromArray, setElementHeight, setElementWidth } from './utils/utils';
+import { ItemConfig, LayoutConfig } from './config/config.js';
+import { ResolvedItemConfig, ResolvedLayoutConfig, ResolvedRootItemConfig } from "./config/resolved-config.js";
+import { BrowserPopout } from './controls/browser-popout.js';
+import { DragProxy } from './controls/drag-proxy.js';
+import { DragSource } from './controls/drag-source.js';
+import { DropTargetIndicator } from './controls/drop-target-indicator.js';
+import { TransitionIndicator } from './controls/transition-indicator.js';
+import { ConfigurationError } from './errors/external-error.js';
+import { AssertError, UnexpectedNullError, UnexpectedUndefinedError, UnreachableCaseError } from './errors/internal-error.js';
+import { ComponentItem } from './items/component-item.js';
+import { ContentItem } from './items/content-item.js';
+import { GroundItem } from './items/ground-item.js';
+import { RowOrColumn } from './items/row-or-column.js';
+import { Stack } from './items/stack.js';
+import { ConfigMinifier } from './utils/config-minifier.js';
+import { EventEmitter } from './utils/event-emitter.js';
+import { EventHub } from './utils/event-hub.js';
+import { I18nStrings, i18nStrings } from './utils/i18n-strings.js';
+import { ItemType, ResponsiveMode } from './utils/types.js';
+import { getElementWidthAndHeight, removeFromArray, setElementHeight, setElementWidth } from './utils/utils.js';
 /**
  * The main class that will be exposed as GoldenLayout.
  */

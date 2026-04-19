@@ -1,6 +1,6 @@
-import { AssertError } from '../errors/internal-error';
-import { numberToPixels, pixelsToNumber } from '../utils/utils';
-import { Tab } from './tab';
+import { AssertError } from '../errors/internal-error.js';
+import { numberToPixels, pixelsToNumber } from '../utils/utils.js';
+import { Tab } from './tab.js';
 /** @internal */
 export class TabsContainer {
     constructor(_layoutManager, _componentRemoveEvent, _componentFocusEvent, _componentDragStartEvent, _dropdownActiveChangedEvent) {

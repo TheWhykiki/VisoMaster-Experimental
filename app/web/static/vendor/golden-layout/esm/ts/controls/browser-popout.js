@@ -1,8 +1,8 @@
-import { ResolvedLayoutConfig } from '../config/resolved-config';
-import { PopoutBlockedError } from '../errors/external-error';
-import { UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error';
-import { EventEmitter } from '../utils/event-emitter';
-import { deepExtend, getErrorMessage, getUniqueId } from '../utils/utils';
+import { ResolvedLayoutConfig } from '../config/resolved-config.js';
+import { PopoutBlockedError } from '../errors/external-error.js';
+import { UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error.js';
+import { EventEmitter } from '../utils/event-emitter.js';
+import { deepExtend, getErrorMessage, getUniqueId } from '../utils/utils.js';
 /**
  * Pops a content item out into a new browser window.
  * This is achieved by

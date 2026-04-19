@@ -1,8 +1,8 @@
-import { ComponentItemConfig, ItemConfig } from '../config/config';
-import { AssertError, UnexpectedNullError } from '../errors/internal-error';
-import { EventEmitter } from '../utils/event-emitter';
-import { LogicalZIndex, LogicalZIndexToDefaultMap } from '../utils/types';
-import { deepExtend, setElementHeight, setElementWidth } from '../utils/utils';
+import { ComponentItemConfig, ItemConfig } from '../config/config.js';
+import { AssertError, UnexpectedNullError } from '../errors/internal-error.js';
+import { EventEmitter } from '../utils/event-emitter.js';
+import { LogicalZIndex, LogicalZIndexToDefaultMap } from '../utils/types.js';
+import { deepExtend, setElementHeight, setElementWidth } from '../utils/utils.js';
 /** @public */
 export class ComponentContainer extends EventEmitter {
     /** @internal */

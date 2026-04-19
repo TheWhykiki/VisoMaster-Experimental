@@ -1,9 +1,9 @@
-import { ItemConfig } from '../config/config';
-import { Splitter } from '../controls/splitter';
-import { AssertError, UnexpectedNullError } from '../errors/internal-error';
-import { ItemType, SizeUnitEnum } from '../utils/types';
-import { getElementHeight, getElementWidth, getElementWidthAndHeight, numberToPixels, pixelsToNumber, setElementHeight, setElementWidth } from "../utils/utils";
-import { ContentItem } from './content-item';
+import { ItemConfig } from '../config/config.js';
+import { Splitter } from '../controls/splitter.js';
+import { AssertError, UnexpectedNullError } from '../errors/internal-error.js';
+import { ItemType, SizeUnitEnum } from '../utils/types.js';
+import { getElementHeight, getElementWidth, getElementWidthAndHeight, numberToPixels, pixelsToNumber, setElementHeight, setElementWidth } from "../utils/utils.js";
+import { ContentItem } from './content-item.js';
 /** @public */
 export class RowOrColumn extends ContentItem {
     /** @internal */

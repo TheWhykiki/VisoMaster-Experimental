@@ -1,10 +1,10 @@
-import { ComponentItemConfig as ConfigComponentItemConfig } from '../config/config'; // remove alias in version 3
-import { ResolvedRowOrColumnItemConfig } from "../config/resolved-config";
-import { UnexpectedNullError } from '../errors/internal-error';
-import { ComponentItem } from '../items/component-item';
-import { GroundItem } from '../items/ground-item';
-import { DragListener } from '../utils/drag-listener';
-import { DragProxy } from './drag-proxy';
+import { ComponentItemConfig as ConfigComponentItemConfig } from '../config/config.js'; // remove alias in version 3
+import { ResolvedRowOrColumnItemConfig } from "../config/resolved-config.js";
+import { UnexpectedNullError } from '../errors/internal-error.js';
+import { ComponentItem } from '../items/component-item.js';
+import { GroundItem } from '../items/ground-item.js';
+import { DragListener } from '../utils/drag-listener.js';
+import { DragProxy } from './drag-proxy.js';
 /**
  * Allows for any DOM item to create a component on drag
  * start to be dragged into the Layout

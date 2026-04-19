@@ -1,5 +1,5 @@
-import { DragListener } from '../utils/drag-listener';
-import { numberToPixels } from '../utils/utils';
+import { DragListener } from '../utils/drag-listener.js';
+import { numberToPixels } from '../utils/utils.js';
 /** @internal */
 export class Splitter {
     constructor(_isVertical, _size, grabSize) {

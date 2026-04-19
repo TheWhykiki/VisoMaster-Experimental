@@ -1,13 +1,13 @@
-import { ItemConfig } from '../config/config';
-import { ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedStackItemConfig } from '../config/resolved-config';
-import { Header } from '../controls/header';
-import { AssertError, UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error';
-import { EventEmitter } from '../utils/event-emitter';
-import { ItemType, Side, SizeUnitEnum, WidthOrHeightPropertyName } from '../utils/types';
-import { getElementWidthAndHeight, numberToPixels, setElementDisplayVisibility } from '../utils/utils';
-import { ComponentItem } from './component-item';
-import { ComponentParentableItem } from './component-parentable-item';
-import { ContentItem } from './content-item';
+import { ItemConfig } from '../config/config.js';
+import { ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedStackItemConfig } from '../config/resolved-config.js';
+import { Header } from '../controls/header.js';
+import { AssertError, UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error.js';
+import { EventEmitter } from '../utils/event-emitter.js';
+import { ItemType, Side, SizeUnitEnum, WidthOrHeightPropertyName } from '../utils/types.js';
+import { getElementWidthAndHeight, numberToPixels, setElementDisplayVisibility } from '../utils/utils.js';
+import { ComponentItem } from './component-item.js';
+import { ComponentParentableItem } from './component-parentable-item.js';
+import { ContentItem } from './content-item.js';
 /** @public */
 export class Stack extends ComponentParentableItem {
     /** @internal */

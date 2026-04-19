@@ -1,8 +1,8 @@
-import { UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error';
-import { Stack } from '../items/stack';
-import { EventEmitter } from '../utils/event-emitter';
-import { Side } from '../utils/types';
-import { numberToPixels } from '../utils/utils';
+import { UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error.js';
+import { Stack } from '../items/stack.js';
+import { EventEmitter } from '../utils/event-emitter.js';
+import { Side } from '../utils/types.js';
+import { numberToPixels } from '../utils/utils.js';
 /**
  * This class creates a temporary container
  * for the component whilst it is being dragged

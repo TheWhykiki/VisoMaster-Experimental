@@ -1,9 +1,9 @@
-import { UnexpectedUndefinedError } from '../errors/internal-error';
-import { EventEmitter } from '../utils/event-emitter';
-import { Side } from '../utils/types';
-import { numberToPixels, setElementDisplayVisibility } from '../utils/utils';
-import { HeaderButton } from './header-button';
-import { TabsContainer } from './tabs-container';
+import { UnexpectedUndefinedError } from '../errors/internal-error.js';
+import { EventEmitter } from '../utils/event-emitter.js';
+import { Side } from '../utils/types.js';
+import { numberToPixels, setElementDisplayVisibility } from '../utils/utils.js';
+import { HeaderButton } from './header-button.js';
+import { TabsContainer } from './tabs-container.js';
 /**
  * This class represents a header above a Stack ContentItem.
  * @public

@@ -1,9 +1,9 @@
-import { ResolvedComponentItemConfig, ResolvedHeaderedItemConfig } from '../config/resolved-config';
-import { ComponentContainer } from '../container/component-container';
-import { UnexpectedNullError } from '../errors/internal-error';
-import { ItemType } from '../utils/types';
-import { getElementWidthAndHeight, setElementHeight, setElementWidth } from '../utils/utils';
-import { ContentItem } from './content-item';
+import { ResolvedComponentItemConfig, ResolvedHeaderedItemConfig } from '../config/resolved-config.js';
+import { ComponentContainer } from '../container/component-container.js';
+import { UnexpectedNullError } from '../errors/internal-error.js';
+import { ItemType } from '../utils/types.js';
+import { getElementWidthAndHeight, setElementHeight, setElementWidth } from '../utils/utils.js';
+import { ContentItem } from './content-item.js';
 /** @public */
 export class ComponentItem extends ContentItem {
     /** @internal */

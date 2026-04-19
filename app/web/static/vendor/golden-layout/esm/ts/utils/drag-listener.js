@@ -1,4 +1,4 @@
-import { EventEmitter } from './event-emitter';
+import { EventEmitter } from './event-emitter.js';
 /** @internal */
 export class DragListener extends EventEmitter {
     constructor(_eElement, extraAllowableChildTargets) {

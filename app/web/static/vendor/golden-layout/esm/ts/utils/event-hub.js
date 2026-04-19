@@ -1,5 +1,5 @@
-import { UnexpectedNullError } from '../errors/internal-error';
-import { EventEmitter } from './event-emitter';
+import { UnexpectedNullError } from '../errors/internal-error.js';
+import { EventEmitter } from './event-emitter.js';
 /**
  * An EventEmitter singleton that propagates events
  * across multiple windows. This is a little bit trickier since

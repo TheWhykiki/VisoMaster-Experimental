@@ -1,4 +1,4 @@
-import { AssertError } from '../errors/internal-error';
+import { AssertError } from '../errors/internal-error.js';
 /** @public */
 export var I18nStrings;
 (function (I18nStrings) {

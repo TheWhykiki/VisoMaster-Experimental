@@ -1,9 +1,9 @@
-import { LayoutConfig } from './config/config';
-import { ResolvedLayoutConfig } from './config/resolved-config';
-import { BindError } from './errors/external-error';
-import { UnexpectedUndefinedError } from './errors/internal-error';
-import { LayoutManager } from './layout-manager';
-import { i18nStrings } from './utils/i18n-strings';
+import { LayoutConfig } from './config/config.js';
+import { ResolvedLayoutConfig } from './config/resolved-config.js';
+import { BindError } from './errors/external-error.js';
+import { UnexpectedUndefinedError } from './errors/internal-error.js';
+import { LayoutManager } from './layout-manager.js';
+import { i18nStrings } from './utils/i18n-strings.js';
 /** @public */
 export class VirtualLayout extends LayoutManager {
     /** @internal */

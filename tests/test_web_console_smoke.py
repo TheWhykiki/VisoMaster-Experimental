@@ -138,6 +138,21 @@ class TestWebConsoleStaticContract(unittest.TestCase):
             (ROOT / "app" / "web" / "static" / "vendor" / "golden-layout" / "esm" / "index.js").is_file()
         )
 
+    def test_golden_layout_vendor_uses_browser_resolvable_relative_imports(self) -> None:
+        vendor_root = ROOT / "app" / "web" / "static" / "vendor" / "golden-layout" / "esm"
+        pattern = re.compile(r"(?:from\s+|import\s+)(['\"])(\.[^'\"]+)\1")
+        offenders: list[str] = []
+
+        for path in vendor_root.rglob("*.js"):
+            text = path.read_text(encoding="utf-8")
+            for match in pattern.finditer(text):
+                target = match.group(2)
+                if target.endswith((".js", ".json", ".css")):
+                    continue
+                offenders.append(f"{path}: {target}")
+
+        self.assertFalse(offenders, f"Extensionless vendor imports found: {offenders[:10]}")
+
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
     def test_workbench_defaults_are_stable(self) -> None:

@@ -1,7 +1,7 @@
-import { AssertError, UnreachableCaseError } from '../errors/internal-error';
-import { ConfigMinifier } from '../utils/config-minifier';
-import { ItemType, ResponsiveMode, Side, SizeUnitEnum } from '../utils/types';
-import { deepExtendValue } from '../utils/utils';
+import { AssertError, UnreachableCaseError } from '../errors/internal-error.js';
+import { ConfigMinifier } from '../utils/config-minifier.js';
+import { ItemType, ResponsiveMode, Side, SizeUnitEnum } from '../utils/types.js';
+import { deepExtendValue } from '../utils/utils.js';
 /** @public */
 export var ResolvedItemConfig;
 (function (ResolvedItemConfig) {

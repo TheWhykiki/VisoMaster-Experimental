@@ -1,4 +1,4 @@
-import { numberToPixels, setElementDisplayVisibility } from '../utils/utils';
+import { numberToPixels, setElementDisplayVisibility } from '../utils/utils.js';
 /** @internal */
 export class DropTargetIndicator {
     constructor() {

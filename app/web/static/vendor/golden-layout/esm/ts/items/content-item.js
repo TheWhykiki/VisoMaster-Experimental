@@ -1,6 +1,6 @@
-import { AssertError, UnexpectedNullError } from '../errors/internal-error';
-import { EventEmitter } from '../utils/event-emitter';
-import { getUniqueId, setElementDisplayVisibility } from '../utils/utils';
+import { AssertError, UnexpectedNullError } from '../errors/internal-error.js';
+import { EventEmitter } from '../utils/event-emitter.js';
+import { getUniqueId, setElementDisplayVisibility } from '../utils/utils.js';
 /**
  * This is the baseclass that all content items inherit from.
  * Most methods provide a subset of what the sub-classes do.

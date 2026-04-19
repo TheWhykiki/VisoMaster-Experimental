@@ -1,4 +1,4 @@
-import { ContentItem } from './content-item';
+import { ContentItem } from './content-item.js';
 export class ComponentParentableItem extends ContentItem {
     constructor() {
         super(...arguments);

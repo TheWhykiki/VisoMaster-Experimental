@@ -1,9 +1,9 @@
-import { ConfigurationError } from '../errors/external-error';
-import { AssertError, UnexpectedUndefinedError, UnreachableCaseError } from '../errors/internal-error';
-import { i18nStrings } from '../utils/i18n-strings';
-import { ItemType, SizeUnitEnum } from '../utils/types';
-import { deepExtendValue, splitStringAtFirstNonNumericChar } from '../utils/utils';
-import { ResolvedComponentItemConfig, ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedLayoutConfig, ResolvedPopoutLayoutConfig, ResolvedRootItemConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig } from "./resolved-config";
+import { ConfigurationError } from '../errors/external-error.js';
+import { AssertError, UnexpectedUndefinedError, UnreachableCaseError } from '../errors/internal-error.js';
+import { i18nStrings } from '../utils/i18n-strings.js';
+import { ItemType, SizeUnitEnum } from '../utils/types.js';
+import { deepExtendValue, splitStringAtFirstNonNumericChar } from '../utils/utils.js';
+import { ResolvedComponentItemConfig, ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedLayoutConfig, ResolvedPopoutLayoutConfig, ResolvedRootItemConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig } from "./resolved-config.js";
 /** @public */
 export var ItemConfig;
 (function (ItemConfig) {

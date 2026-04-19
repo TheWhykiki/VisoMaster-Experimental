@@ -1,12 +1,12 @@
-import { ItemConfig } from '../config/config';
-import { ResolvedGroundItemConfig, ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedRootItemConfig, ResolvedStackItemConfig } from '../config/resolved-config';
-import { AssertError, UnexpectedNullError } from '../errors/internal-error';
-import { ItemType, SizeUnitEnum } from '../utils/types';
-import { getElementWidthAndHeight, setElementHeight, setElementWidth } from '../utils/utils';
-import { ComponentItem } from './component-item';
-import { ComponentParentableItem } from './component-parentable-item';
-import { ContentItem } from './content-item';
-import { RowOrColumn } from './row-or-column';
+import { ItemConfig } from '../config/config.js';
+import { ResolvedGroundItemConfig, ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedRootItemConfig, ResolvedStackItemConfig } from '../config/resolved-config.js';
+import { AssertError, UnexpectedNullError } from '../errors/internal-error.js';
+import { ItemType, SizeUnitEnum } from '../utils/types.js';
+import { getElementWidthAndHeight, setElementHeight, setElementWidth } from '../utils/utils.js';
+import { ComponentItem } from './component-item.js';
+import { ComponentParentableItem } from './component-parentable-item.js';
+import { ContentItem } from './content-item.js';
+import { RowOrColumn } from './row-or-column.js';
 /**
  * GroundItem is the ContentItem whose one child is the root ContentItem (Root is planted in Ground).
  * (Previously it was called root however this was incorrect as its child is the root item)

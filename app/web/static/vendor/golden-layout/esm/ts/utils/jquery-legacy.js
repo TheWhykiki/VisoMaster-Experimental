@@ -1,4 +1,4 @@
-import { pixelsToNumber } from './utils';
+import { pixelsToNumber } from './utils.js';
 /** @internal */
 export function getJQueryLeftAndTop(element) {
     const style = getComputedStyle(element, null);

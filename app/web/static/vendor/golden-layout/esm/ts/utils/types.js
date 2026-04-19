@@ -1,5 +1,5 @@
-import { UnreachableCaseError } from '../errors/internal-error';
-import { StyleConstants } from './style-constants';
+import { UnreachableCaseError } from '../errors/internal-error.js';
+import { StyleConstants } from './style-constants.js';
 /** @internal */
 export var WidthOrHeightPropertyName;
 (function (WidthOrHeightPropertyName) {
