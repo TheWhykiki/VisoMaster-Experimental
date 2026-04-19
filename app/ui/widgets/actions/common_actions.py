@@ -516,16 +516,20 @@ def update_placeholder_visibility(
     #     The default_hide parameter is used to Hide the placeholder text by default.
     #     If the default_hide is False, then the visibility of the placeholder text is set using the size of the list_widget
     # """
-    if default_hide:
-        is_visible = False
-    else:
-        is_visible = list_widget.count() == 0
-    list_widget.placeholder_label.setVisible(is_visible)
-    # Set Cursor on the List Widget
-    if is_visible:
-        list_widget.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-    else:
-        list_widget.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+    try:
+        if default_hide:
+            is_visible = False
+        else:
+            is_visible = list_widget.count() == 0
+        list_widget.placeholder_label.setVisible(is_visible)
+        # Set Cursor on the List Widget
+        if is_visible:
+            list_widget.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        else:
+            list_widget.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+    except RuntimeError:
+        # During headless automation, queued placeholder updates can arrive after widgets are gone.
+        return
     # print("SetVisible", is_visible)
     # print("targetVideosList.count()", list_widget.count())
 

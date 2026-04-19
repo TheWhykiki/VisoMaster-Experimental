@@ -93,103 +93,105 @@ class ListWidgetEventFilter(QtCore.QObject):
         list_widget: QtWidgets.QListWidget,
         event: QtCore.QEvent | QtGui.QDropEvent | QtGui.QMouseEvent,
     ):
-        if (
-            list_widget == self.main_window.targetVideosList
-            or list_widget == self.main_window.targetVideosList.viewport()
-        ):
-            if event.type() == QtCore.QEvent.Type.MouseButtonPress:
-                if (
-                    event.button() == QtCore.Qt.MouseButton.LeftButton
-                    and not self.main_window.target_videos
-                ):
-                    list_view_actions.select_target_medias(self.main_window, "folder")
+        try:
+            if (
+                list_widget == self.main_window.targetVideosList
+                or list_widget == self.main_window.targetVideosList.viewport()
+            ):
+                if event.type() == QtCore.QEvent.Type.MouseButtonPress:
+                    if (
+                        event.button() == QtCore.Qt.MouseButton.LeftButton
+                        and not self.main_window.target_videos
+                    ):
+                        list_view_actions.select_target_medias(self.main_window, "folder")
 
-            elif event.type() == QtCore.QEvent.Type.DragEnter:
-                # Accept drag events with URLs
-                if event.mimeData().hasUrls():
-                    urls = event.mimeData().urls()
-                    print("Drag: URLS", [url.toLocalFile() for url in urls])
-                    event.acceptProposedAction()
-                    return True
-            # Handle the drop event
-            elif event.type() == QtCore.QEvent.Type.Drop:
-                if event.mimeData().hasUrls():
-                    # Extract file paths
-                    file_paths = []
-                    for url in event.mimeData().urls():
-                        url = url.toLocalFile()
-                        if misc_helpers.is_image_file(
-                            url
-                        ) or misc_helpers.is_video_file(url):
-                            file_paths.append(url)
-                        else:
-                            print(f"{url} is not an Video or Image file")
-                    # print("Drop: URLS", [url.toLocalFile() for url in urls])
-                    if file_paths:
-                        self.main_window.video_loader_worker = (
-                            ui_workers.TargetMediaLoaderWorker(
-                                main_window=self.main_window,
-                                folder_name=False,
-                                files_list=file_paths,
+                elif event.type() == QtCore.QEvent.Type.DragEnter:
+                    # Accept drag events with URLs
+                    if event.mimeData().hasUrls():
+                        urls = event.mimeData().urls()
+                        print("Drag: URLS", [url.toLocalFile() for url in urls])
+                        event.acceptProposedAction()
+                        return True
+                # Handle the drop event
+                elif event.type() == QtCore.QEvent.Type.Drop:
+                    if event.mimeData().hasUrls():
+                        # Extract file paths
+                        file_paths = []
+                        for url in event.mimeData().urls():
+                            url = url.toLocalFile()
+                            if misc_helpers.is_image_file(
+                                url
+                            ) or misc_helpers.is_video_file(url):
+                                file_paths.append(url)
+                            else:
+                                print(f"{url} is not an Video or Image file")
+                        if file_paths:
+                            self.main_window.video_loader_worker = (
+                                ui_workers.TargetMediaLoaderWorker(
+                                    main_window=self.main_window,
+                                    folder_name=False,
+                                    files_list=file_paths,
+                                )
                             )
-                        )
-                        self.main_window.video_loader_worker.thumbnail_ready.connect(
-                            partial(
-                                list_view_actions.add_media_thumbnail_to_target_videos_list,
-                                self.main_window,
+                            self.main_window.video_loader_worker.thumbnail_ready.connect(
+                                partial(
+                                    list_view_actions.add_media_thumbnail_to_target_videos_list,
+                                    self.main_window,
+                                )
                             )
-                        )
-                        self.main_window.video_loader_worker.start()
-                    event.acceptProposedAction()
-                    return True
+                            self.main_window.video_loader_worker.start()
+                        event.acceptProposedAction()
+                        return True
 
-        elif (
-            list_widget == self.main_window.inputFacesList
-            or list_widget == self.main_window.inputFacesList.viewport()
-        ):
-            if event.type() == QtCore.QEvent.Type.MouseButtonPress:
-                if (
-                    event.button() == QtCore.Qt.MouseButton.LeftButton
-                    and not self.main_window.input_faces
-                ):
-                    list_view_actions.select_input_face_images(
-                        self.main_window, "folder"
-                    )
+            elif (
+                list_widget == self.main_window.inputFacesList
+                or list_widget == self.main_window.inputFacesList.viewport()
+            ):
+                if event.type() == QtCore.QEvent.Type.MouseButtonPress:
+                    if (
+                        event.button() == QtCore.Qt.MouseButton.LeftButton
+                        and not self.main_window.input_faces
+                    ):
+                        list_view_actions.select_input_face_images(
+                            self.main_window, "folder"
+                        )
 
-            elif event.type() == QtCore.QEvent.Type.DragEnter:
-                # Accept drag events with URLs
-                if event.mimeData().hasUrls():
-                    urls = event.mimeData().urls()
-                    print("Drag: URLS", [url.toLocalFile() for url in urls])
-                    event.acceptProposedAction()
-                    return True
-            # Handle the drop event
-            elif event.type() == QtCore.QEvent.Type.Drop:
-                if event.mimeData().hasUrls():
-                    # Extract file paths
-                    file_paths = []
-                    for url in event.mimeData().urls():
-                        url = url.toLocalFile()
-                        if misc_helpers.is_image_file(url):
-                            file_paths.append(url)
-                        else:
-                            print(f"{url} is not an Image file")
-                    # print("Drop: URLS", [url.toLocalFile() for url in urls])
-                    if file_paths:
-                        self.main_window.input_faces_loader_worker = (
-                            ui_workers.InputFacesLoaderWorker(
-                                main_window=self.main_window,
-                                folder_name=False,
-                                files_list=file_paths,
+                elif event.type() == QtCore.QEvent.Type.DragEnter:
+                    # Accept drag events with URLs
+                    if event.mimeData().hasUrls():
+                        urls = event.mimeData().urls()
+                        print("Drag: URLS", [url.toLocalFile() for url in urls])
+                        event.acceptProposedAction()
+                        return True
+                # Handle the drop event
+                elif event.type() == QtCore.QEvent.Type.Drop:
+                    if event.mimeData().hasUrls():
+                        # Extract file paths
+                        file_paths = []
+                        for url in event.mimeData().urls():
+                            url = url.toLocalFile()
+                            if misc_helpers.is_image_file(url):
+                                file_paths.append(url)
+                            else:
+                                print(f"{url} is not an Image file")
+                        if file_paths:
+                            self.main_window.input_faces_loader_worker = (
+                                ui_workers.InputFacesLoaderWorker(
+                                    main_window=self.main_window,
+                                    folder_name=False,
+                                    files_list=file_paths,
+                                )
                             )
-                        )
-                        self.main_window.input_faces_loader_worker.thumbnail_ready.connect(
-                            partial(
-                                list_view_actions.add_media_thumbnail_to_source_faces_list,
-                                self.main_window,
+                            self.main_window.input_faces_loader_worker.thumbnail_ready.connect(
+                                partial(
+                                    list_view_actions.add_media_thumbnail_to_source_faces_list,
+                                    self.main_window,
+                                )
                             )
-                        )
-                        self.main_window.input_faces_loader_worker.start()
-                    event.acceptProposedAction()
-                    return True
-        return super().eventFilter(list_widget, event)
+                            self.main_window.input_faces_loader_worker.start()
+                        event.acceptProposedAction()
+                        return True
+            return super().eventFilter(list_widget, event)
+        except RuntimeError:
+            # Headless runs can tear down list widgets while queued Qt events are still draining.
+            return False
