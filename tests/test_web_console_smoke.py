@@ -117,6 +117,7 @@ class TestWebConsoleStaticContract(unittest.TestCase):
             "Swap Faces",
             "Preview Frame",
             "Swap Preview",
+            "Find Faces",
         ):
             self.assertIn(label, html)
 
@@ -126,6 +127,7 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
         schema = web_workbench.schema_payload()
         self.assertEqual(["swap", "restoration", "detect", "output"], [tab["id"] for tab in schema["tabs"]])
         self.assertIn("OutputMediaFolder", schema["defaults"]["control"])
+        self.assertIn("BrowserAssignStrategySelection", schema["defaults"]["control"])
         self.assertIn("SwapModelSelection", schema["defaults"]["parameters"])
 
     def test_browser_workflow_upload_roundtrip_uses_isolated_state(self) -> None:
@@ -141,10 +143,16 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
         self.assertIn("/api/browser-workflow/media/target", state["targetMedia"]["mediaUrl"])
         self.assertIn("mediaUrl", state["sourceFaces"][0])
 
-        request_payload = browser_workflow.build_run_request(detection_frame=12)
+        request_payload = browser_workflow.build_run_request(
+            detection_frame=12,
+            workbench_state={
+                "control": {"BrowserAssignStrategySelection": "source_order_to_target_order"}
+            },
+        )
         self.assertEqual(12, request_payload["detectionFrame"])
         self.assertEqual(2, len(request_payload["inputFacePaths"]))
         self.assertEqual(state["outputFolder"], request_payload["outputFolder"])
+        self.assertEqual("source_order_to_target_order", request_payload["assignStrategy"])
 
     def test_frame_preview_is_generated_for_uploaded_image(self) -> None:
         browser_workflow.save_target_upload("target.png", PNG_BYTES)
@@ -174,6 +182,32 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
 
         state = browser_workflow.current_state()
         self.assertEqual(4, state["swapPreview"]["frameIndex"])
+
+    def test_detected_target_faces_can_be_registered_in_isolated_state(self) -> None:
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+        faces_dir = browser_workflow.found_faces_dir()
+        face_path = faces_dir / "target_face_01.png"
+        face_path.write_bytes(PNG_BYTES)
+
+        detected = browser_workflow.register_detected_faces(
+            {
+                "frameIndex": 7,
+                "targetName": "target.png",
+                "faces": [
+                    {
+                        "assetName": "faces/target_face_01.png",
+                        "label": "Target Face 1",
+                        "faceId": "101",
+                        "frameIndex": 7,
+                    }
+                ],
+            }
+        )
+        self.assertEqual(1, detected["count"])
+        self.assertIn(
+            "/api/browser-workflow/faces/faces/target_face_01.png",
+            detected["faces"][0]["mediaUrl"],
+        )
 
 
 class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):

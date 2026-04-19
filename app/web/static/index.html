@@ -84,8 +84,22 @@
                 <article class="subpanel-card session-summary-card">
                   <div class="section-header">
                     <div>
-                      <h3>3. Session Summary</h3>
-                      <p class="panel-note">Use Preview Frame for video targets before starting the swap.</p>
+                      <h3>3. Find Target Faces</h3>
+                      <p class="panel-note">Use the current detection frame and detector settings to find faces in the target video.</p>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="findTargetFacesButton" class="mini primary" type="button">Find Faces</button>
+                      <button id="clearTargetFacesButton" class="mini" type="button">Clear</button>
+                    </div>
+                  </div>
+                  <div id="targetFacesPreviewList" class="browser-grid input-grid empty">No target faces detected yet.</div>
+                </article>
+
+                <article class="subpanel-card session-summary-card">
+                  <div class="section-header">
+                    <div>
+                      <h3>4. Session Summary</h3>
+                      <p class="panel-note">Use Find Faces and the replace strategy before starting the swap.</p>
                     </div>
                   </div>
                   <div id="workflowSummary" class="panel-note media-summary">

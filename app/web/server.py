@@ -88,6 +88,16 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                     {"error": "Es liegt noch keine geswappte Vorschau vor."},
                 )
             return
+        if path.startswith("/api/browser-workflow/faces/"):
+            try:
+                name = unquote(path.removeprefix("/api/browser-workflow/faces/"))
+                self._serve_file(browser_workflow.detected_face_image_path(name))
+            except FileNotFoundError:
+                self._write_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "Das gefundene Zielgesicht wurde nicht gefunden."},
+                )
+            return
         if path == "/api/workbench":
             self._write_json(HTTPStatus.OK, web_workbench.schema_payload())
             return
@@ -175,6 +185,17 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
             self._write_json(HTTPStatus.OK, payload)
             return
 
+        if path == "/api/browser-workflow/faces/clear":
+            browser_workflow.clear_detected_faces()
+            self._write_json(
+                HTTPStatus.OK,
+                {
+                    "message": "Gefundene Zielgesichter wurden geleert.",
+                    "state": browser_workflow.current_state(),
+                },
+            )
+            return
+
         if path == "/api/browser-workflow/run":
             payload = self._read_request_json()
             if payload is None:
@@ -218,6 +239,21 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 return
             try:
                 response = web_processing.generate_upload_preview(
+                    detection_frame=int(payload.get("frameIndex", 0)),
+                    workbench_state=payload.get("workbench"),
+                )
+            except ValueError as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(HTTPStatus.OK, response)
+            return
+
+        if path == "/api/browser-workflow/find-faces":
+            payload = self._read_request_json()
+            if payload is None:
+                return
+            try:
+                response = web_processing.generate_found_faces(
                     detection_frame=int(payload.get("frameIndex", 0)),
                     workbench_state=payload.get("workbench"),
                 )

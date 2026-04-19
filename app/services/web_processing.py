@@ -320,6 +320,73 @@ def generate_upload_preview(
         }
 
 
+def generate_found_faces(
+    detection_frame: int = 0,
+    workbench_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_payload = browser_workflow.build_find_faces_request(
+        detection_frame=detection_frame,
+        workbench_state=workbench_state,
+    )
+
+    with _LOCK:
+        active = _active_process()
+        if active is not None and active.poll() is None:
+            raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+
+        PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
+        browser_workflow.clear_detected_faces()
+        browser_workflow.clear_swap_preview()
+
+        request_file = PROCESSING_DIR / "current_find_faces_request.json"
+        _write_json_file(request_file, request_payload)
+
+        preview_status = {
+            "status": "starting",
+            "mode": "find_faces",
+            "message": "Zielgesichter werden im Browser-Workflow gesucht.",
+            "startedAt": _iso_now(),
+            "targetMediaPath": request_payload["targetMediaPath"],
+            "statusFile": str(PREVIEW_STATUS_FILE),
+            "requestFile": str(request_file),
+        }
+        _write_json_file(PREVIEW_STATUS_FILE, preview_status)
+        if PREVIEW_LOG_FILE.exists():
+            PREVIEW_LOG_FILE.unlink()
+
+        with PREVIEW_LOG_FILE.open("w", encoding="utf-8") as log_handle:
+            process = subprocess.run(
+                _build_request_command(request_file, PREVIEW_STATUS_FILE),
+                cwd=project_root_path(),
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=_prepare_environment(),
+            )
+
+        final_status = _read_json_file(PREVIEW_STATUS_FILE)
+        if process.returncode != 0:
+            message = final_status.get(
+                "message",
+                "Die Zielgesicht-Suche konnte nicht abgeschlossen werden.",
+            )
+            raise ValueError(message)
+        if final_status.get("status") != "succeeded":
+            message = final_status.get(
+                "message",
+                "Die Zielgesicht-Suche wurde nicht erfolgreich abgeschlossen.",
+            )
+            raise ValueError(message)
+
+        manifest_path = browser_workflow.found_faces_manifest_path()
+        manifest = _read_json_file(manifest_path)
+        detected = browser_workflow.register_detected_faces(manifest)
+        return {
+            "message": f'{detected["count"]} Zielgesicht(er) gefunden.',
+            "state": browser_workflow.current_state(),
+        }
+
+
 def stop_job() -> dict[str, Any]:
     with _LOCK:
         status = _read_json_file(STATUS_FILE)

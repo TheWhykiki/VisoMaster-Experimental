@@ -469,6 +469,18 @@ WORKBENCH_TABS: list[dict[str, Any]] = [
                         "default": False,
                         "help": "Tauscht nur das beste Match pro Eingabegesicht.",
                     },
+                    {
+                        "scope": "control",
+                        "key": "BrowserAssignStrategySelection",
+                        "type": "select",
+                        "label": "Replace Strategy",
+                        "default": "first_source_to_all_targets",
+                        "options": [
+                            "first_source_to_all_targets",
+                            "source_order_to_target_order",
+                        ],
+                        "help": "Bestimmt, ob das erste Source-Face auf alle gefundenen Ziele geht oder ob mehrere Source-Faces der Reihenfolge nach auf erkannte Zielgesichter verteilt werden.",
+                    },
                 ],
             },
         ],

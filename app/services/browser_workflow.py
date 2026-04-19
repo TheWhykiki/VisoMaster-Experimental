@@ -18,6 +18,7 @@ PREVIEW_DIR = ensure_project_dir(".web", "workflow", "preview")
 OUTPUT_DIR = ensure_project_dir(".web", "outputs")
 TARGET_PREVIEW_META_PATH = PREVIEW_DIR / "target_frame.json"
 SWAP_PREVIEW_META_PATH = PREVIEW_DIR / "swap_preview.json"
+DETECTED_FACES_META_PATH = PREVIEW_DIR / "detected_faces.json"
 _CV2 = None
 _CV2_LOADED = False
 
@@ -178,6 +179,36 @@ def _swap_preview_state() -> dict[str, Any] | None:
     )
 
 
+def _detected_faces_state() -> dict[str, Any] | None:
+    payload = _read_json(DETECTED_FACES_META_PATH)
+    faces = payload.get("faces")
+    if not isinstance(faces, list) or not faces:
+        return None
+
+    normalized_faces: list[dict[str, Any]] = []
+    for entry in faces:
+        if not isinstance(entry, dict):
+            continue
+        asset_name = str(entry.get("assetName", "")).strip()
+        if not asset_name:
+            continue
+        asset_path = PREVIEW_DIR / asset_name
+        if not asset_path.is_file():
+            continue
+        normalized = dict(entry)
+        normalized["path"] = str(asset_path)
+        normalized["mediaUrl"] = (
+            f"/api/browser-workflow/faces/{asset_name}?ts={int(asset_path.stat().st_mtime)}"
+        )
+        normalized_faces.append(normalized)
+
+    if not normalized_faces:
+        return None
+
+    payload["faces"] = normalized_faces
+    return payload
+
+
 def _preview_state_from(meta_path: Path, route: str) -> dict[str, Any] | None:
     payload = _read_json(meta_path)
     asset_name = str(payload.get("assetName", "")).strip()
@@ -200,6 +231,23 @@ def _clear_preview_asset(meta_path: Path) -> None:
             asset_path.unlink()
     if meta_path.is_file():
         meta_path.unlink()
+
+
+def _clear_detected_faces() -> None:
+    payload = _read_json(DETECTED_FACES_META_PATH)
+    faces = payload.get("faces")
+    if isinstance(faces, list):
+        for entry in faces:
+            if not isinstance(entry, dict):
+                continue
+            asset_name = str(entry.get("assetName", "")).strip()
+            if not asset_name:
+                continue
+            asset_path = PREVIEW_DIR / asset_name
+            if asset_path.is_file():
+                asset_path.unlink()
+    if DETECTED_FACES_META_PATH.is_file():
+        DETECTED_FACES_META_PATH.unlink()
 
 
 def _entry(path: Path) -> dict[str, Any]:
@@ -233,6 +281,14 @@ def source_media_path(name: str) -> Path:
     return _source_file(name)
 
 
+def detected_face_image_path(name: str) -> Path:
+    candidate = (PREVIEW_DIR / Path(name)).resolve()
+    preview_root = PREVIEW_DIR.resolve()
+    if not str(candidate).startswith(str(preview_root)) or not candidate.is_file():
+        raise FileNotFoundError("Das gefundene Zielgesicht wurde nicht gefunden.")
+    return candidate
+
+
 def preview_image_path() -> Path:
     preview = _preview_state()
     if not preview:
@@ -256,6 +312,11 @@ def clear_swap_preview() -> None:
     _clear_preview_asset(SWAP_PREVIEW_META_PATH)
 
 
+def clear_detected_faces() -> None:
+    _clear_detected_faces()
+    clear_swap_preview()
+
+
 def register_swap_preview(asset_path: Path, frame_index: int, *, source_count: int) -> dict[str, Any]:
     if not asset_path.is_file():
         raise FileNotFoundError("Die geswappte Vorschau-Datei wurde nicht gefunden.")
@@ -272,6 +333,62 @@ def register_swap_preview(asset_path: Path, frame_index: int, *, source_count: i
     if preview is None:
         raise ValueError("Die geswappte Vorschau konnte nicht registriert werden.")
     return preview
+
+
+def found_faces_dir() -> Path:
+    path = PREVIEW_DIR / "faces"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def found_faces_manifest_path() -> Path:
+    return PREVIEW_DIR / "faces_manifest.json"
+
+
+def register_detected_faces(payload: dict[str, Any] | None) -> dict[str, Any]:
+    clear_detected_faces()
+    if not isinstance(payload, dict):
+        raise ValueError("Die Zielgesichter konnten nicht registriert werden.")
+    faces = payload.get("faces")
+    if not isinstance(faces, list) or not faces:
+        raise ValueError("Es wurden keine Zielgesichter erkannt.")
+
+    normalized_faces: list[dict[str, Any]] = []
+    for index, entry in enumerate(faces, start=1):
+        if not isinstance(entry, dict):
+            continue
+        asset_name = str(entry.get("assetName", "")).strip()
+        if not asset_name:
+            continue
+        asset_path = PREVIEW_DIR / asset_name
+        if not asset_path.is_file():
+            continue
+        normalized_faces.append(
+            {
+                "assetName": asset_name,
+                "label": str(entry.get("label") or f"Target Face {index}"),
+                "faceId": str(entry.get("faceId") or index),
+                "frameIndex": int(entry.get("frameIndex", 0) or 0),
+                "fileType": "image",
+                "targetName": str(entry.get("targetName") or target_media_path().name),
+            }
+        )
+
+    if not normalized_faces:
+        raise ValueError("Es wurden keine gueltigen Zielgesichter registriert.")
+
+    metadata = {
+        "frameIndex": int(payload.get("frameIndex", 0) or 0),
+        "targetName": str(payload.get("targetName") or target_media_path().name),
+        "count": len(normalized_faces),
+        "updatedAt": _iso_now(),
+        "faces": normalized_faces,
+    }
+    _write_json(DETECTED_FACES_META_PATH, metadata)
+    state = _detected_faces_state()
+    if state is None:
+        raise ValueError("Die Zielgesichter konnten nicht gelesen werden.")
+    return state
 
 
 def _extract_video_frame(path: Path, frame_index: int) -> tuple[Any, int]:
@@ -356,9 +473,13 @@ def current_state() -> dict[str, Any]:
             else "Bitte Zielmedium und mindestens ein Quellgesicht hochladen."
         ),
         "updatedAt": _iso_now(),
-        "assignStrategy": "first_source_to_all_targets",
+        "assignStrategy": workbench_state["control"].get(
+            "BrowserAssignStrategySelection",
+            "first_source_to_all_targets",
+        ),
         "previewFrame": _preview_state(),
         "swapPreview": _swap_preview_state(),
+        "detectedTargetFaces": _detected_faces_state(),
         "workbench": workbench_state,
     }
 
@@ -402,6 +523,29 @@ def save_source_uploads(files: list[tuple[str, bytes]]) -> dict[str, Any]:
     return {"saved": saved_items, "state": current_state()}
 
 
+def build_find_faces_request(
+    detection_frame: int = 0,
+    workbench_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    state = current_state()
+    if not state["targetMedia"]:
+        raise ValueError("Bitte zuerst ein Zielmedium hochladen.")
+
+    normalized_detection_frame = max(0, int(detection_frame))
+    normalized_workbench = web_workbench.normalize_state(
+        workbench_state or state.get("workbench")
+    )
+    return {
+        "mode": "find_faces",
+        "label": "Browser-Face-Detect",
+        "targetMediaPath": state["targetMedia"]["path"],
+        "foundFacesDir": str(found_faces_dir()),
+        "foundFacesManifestPath": str(found_faces_manifest_path()),
+        "detectionFrame": normalized_detection_frame,
+        "workbench": normalized_workbench,
+    }
+
+
 def build_run_request(
     detection_frame: int = 0,
     workbench_state: dict[str, Any] | None = None,
@@ -421,6 +565,9 @@ def build_run_request(
         "inputFacePaths": [entry["path"] for entry in state["sourceFaces"]],
         "outputFolder": normalized_workbench["control"]["OutputMediaFolder"],
         "detectionFrame": normalized_detection_frame,
-        "assignStrategy": state["assignStrategy"],
+        "assignStrategy": normalized_workbench["control"].get(
+            "BrowserAssignStrategySelection",
+            state["assignStrategy"],
+        ),
         "workbench": normalized_workbench,
     }

@@ -278,18 +278,19 @@ class Runner:
             self.main_window.video_processor.process_current_frame()
             QtWidgets.QApplication.processEvents()
 
-        card_actions.find_target_faces(self.main_window)
-        QtWidgets.QApplication.processEvents()
-        if not self.main_window.target_faces:
-            raise RuntimeError(
-                "Im Zielmedium konnte kein Zielgesicht erkannt werden. Bitte pruefe das Medium oder waehle bei Videos spaeter einen gueltigen Erkennungsframe."
-            )
-
+        self._detect_target_faces()
         self._apply_workbench_parameters()
-        primary_input_face = list(self.main_window.input_faces.values())[0]
-        for target_face in self.main_window.target_faces.values():
+        input_faces = list(self.main_window.input_faces.values())
+        assign_strategy = str(
+            self.request_payload.get("assignStrategy", "first_source_to_all_targets")
+        ).strip()
+        for index, target_face in enumerate(self.main_window.target_faces.values()):
+            if assign_strategy == "source_order_to_target_order" and input_faces:
+                selected_input_face = input_faces[min(index, len(input_faces) - 1)]
+            else:
+                selected_input_face = input_faces[0]
             target_face.assigned_input_faces = {
-                primary_input_face.face_id: primary_input_face.embedding_store
+                selected_input_face.face_id: selected_input_face.embedding_store
             }
             target_face.assigned_merged_embeddings = {}
             target_face.calculate_assigned_input_embedding()
@@ -298,6 +299,100 @@ class Runner:
         self.main_window.swapfacesButton.setChecked(True)
         video_control_actions.process_swap_faces(self.main_window)
         QtWidgets.QApplication.processEvents()
+
+    def _prepare_target_detection(self) -> int:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+
+        target_media_path = self.request_payload.get("targetMediaPath")
+        detection_frame = max(0, int(self.request_payload.get("detectionFrame", 0)))
+        if not target_media_path or not Path(target_media_path).is_file():
+            raise RuntimeError("Das hochgeladene Zielmedium wurde nicht gefunden.")
+
+        self._apply_workbench_control()
+        self._load_target_media(target_media_path)
+        normalized_frame = self._set_detection_frame(detection_frame)
+        self._detect_target_faces()
+        return normalized_frame
+
+    def _set_detection_frame(self, detection_frame: int) -> int:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+
+        if (
+            self.main_window.video_processor.file_type == "video"
+            and detection_frame > 0
+        ):
+            max_frame = max(0, int(self.main_window.video_processor.max_frame_number or 0))
+            detection_frame = min(detection_frame, max_frame)
+            self.main_window.videoSeekSlider.blockSignals(True)
+            self.main_window.videoSeekSlider.setValue(detection_frame)
+            self.main_window.videoSeekSlider.blockSignals(False)
+            self.main_window.video_processor.current_frame_number = detection_frame
+            self.main_window.video_processor.process_current_frame()
+            QtWidgets.QApplication.processEvents()
+            return detection_frame
+        return 0
+
+    def _detect_target_faces(self) -> None:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+        card_actions.find_target_faces(self.main_window)
+        QtWidgets.QApplication.processEvents()
+        if not self.main_window.target_faces:
+            raise RuntimeError(
+                "Im Zielmedium konnte kein Zielgesicht erkannt werden. Bitte pruefe das Medium oder waehle bei Videos spaeter einen gueltigen Erkennungsframe."
+            )
+
+    def _save_found_faces_manifest(self, output_dir: str | Path, frame_index: int) -> str:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        for child in output_path.iterdir():
+            if child.is_file():
+                child.unlink()
+
+        faces_payload: list[dict[str, Any]] = []
+        for index, target_face in enumerate(self.main_window.target_faces.values(), start=1):
+            cropped_face = getattr(target_face, "cropped_face", None)
+            if not isinstance(cropped_face, numpy.ndarray):
+                continue
+            asset_name = f"target_face_{index:02d}.png"
+            asset_path = output_path / asset_name
+            Image.fromarray(cropped_face[..., ::-1]).save(asset_path, "PNG")
+            faces_payload.append(
+                {
+                    "assetName": str(Path("faces") / asset_name),
+                    "label": f"Target Face {index}",
+                    "faceId": str(target_face.face_id),
+                    "frameIndex": int(frame_index),
+                    "targetName": Path(self.request_payload.get("targetMediaPath", "")).name,
+                }
+            )
+
+        if not faces_payload:
+            raise RuntimeError("Die gefundenen Zielgesichter konnten nicht gespeichert werden.")
+
+        manifest_path_raw = str(
+            self.request_payload.get("foundFacesManifestPath", "")
+        ).strip()
+        if not manifest_path_raw:
+            raise RuntimeError("Der Manifest-Pfad fuer Zielgesichter fehlt.")
+        manifest_path = Path(manifest_path_raw)
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        with manifest_path.open("w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "frameIndex": int(frame_index),
+                    "targetName": Path(self.request_payload.get("targetMediaPath", "")).name,
+                    "faces": faces_payload,
+                },
+                handle,
+                indent=2,
+            )
+        return str(manifest_path)
 
     def _job_output_folder(self) -> Path | None:
         if not self.main_window:
@@ -435,6 +530,26 @@ class Runner:
             self.finish_success(
                 message="Geswappte Vorschau wurde erfolgreich erzeugt.",
                 output_path=saved_path,
+            )
+            return
+
+        if self.mode == "find_faces":
+            self._write_status(
+                status="loading",
+                message="Zielgesichter werden im aktuellen Detection Frame gesucht.",
+            )
+            try:
+                frame_index = self._prepare_target_detection()
+                found_faces_dir = str(self.request_payload.get("foundFacesDir", "")).strip()
+                if not found_faces_dir:
+                    raise RuntimeError("Der Ausgabeordner fuer gefundene Zielgesichter fehlt.")
+                manifest_path = self._save_found_faces_manifest(found_faces_dir, frame_index)
+            except Exception as exc:
+                self.fail(str(exc))
+                return
+            self.finish_success(
+                message=f"{len(self.main_window.target_faces)} Zielgesicht(er) wurden erkannt.",
+                output_path=manifest_path,
             )
             return
 

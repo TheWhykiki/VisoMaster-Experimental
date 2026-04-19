@@ -61,12 +61,15 @@ const targetUploadInput = document.getElementById("targetUploadInput");
 const sourceUploadInput = document.getElementById("sourceUploadInput");
 const uploadTargetButton = document.getElementById("uploadTargetButton");
 const uploadSourcesButton = document.getElementById("uploadSourcesButton");
+const findTargetFacesButton = document.getElementById("findTargetFacesButton");
+const clearTargetFacesButton = document.getElementById("clearTargetFacesButton");
 const workflowResetButton = document.getElementById("workflowResetButton");
 const workflowRunButton = document.getElementById("workflowRunButton");
 const workflowSummary = document.getElementById("workflowSummary");
 const detectionFrameInput = document.getElementById("detectionFrameInput");
 const targetMediaPreview = document.getElementById("targetMediaPreview");
 const sourceFacePreviewList = document.getElementById("sourceFacePreviewList");
+const targetFacesPreviewList = document.getElementById("targetFacesPreviewList");
 const stageTargetPreview = document.getElementById("stageTargetPreview");
 const stageComparePreview = document.getElementById("stageComparePreview");
 const targetStageMeta = document.getElementById("targetStageMeta");
@@ -380,9 +383,13 @@ function updateProcessingActionState() {
   const selectedJobName =
     state.selection && state.selection.type === "jobs" ? state.selection.name : null;
   const isActive = Boolean(state.processing?.active);
+  const hasTargetMedia = Boolean(state.browserWorkflow?.targetMedia);
   processingStartButton.disabled = !selectedJobName || isActive;
   processingStopButton.disabled = !isActive;
   workflowRunButton.disabled = !state.browserWorkflow?.canRun || isActive;
+  findTargetFacesButton.disabled = !hasTargetMedia || isActive;
+  clearTargetFacesButton.disabled =
+    !(state.browserWorkflow?.detectedTargetFaces?.count > 0) || isActive;
   processingSelection.textContent = selectedJobName
     ? `Ausgewaehlter Job: ${selectedJobName}`
     : "Bitte links einen Job auswaehlen oder direkt mit Uploads arbeiten.";
@@ -728,10 +735,44 @@ function renderSourcePreviews(entries = []) {
   sourceStageMeta.textContent = `${entries.length} source face(s) loaded.`;
 }
 
+function renderDetectedTargetFaces(payload) {
+  const faces = payload?.faces || [];
+  if (!faces.length) {
+    targetFacesPreviewList.className = "browser-grid input-grid empty";
+    targetFacesPreviewList.textContent = "No target faces detected yet.";
+    return;
+  }
+
+  targetFacesPreviewList.className = "browser-grid input-grid";
+  targetFacesPreviewList.innerHTML = faces
+    .map(
+      (entry) => `
+        <article class="browser-item source-item">
+          ${createMediaThumb(entry, entry.mediaUrl)}
+          <div class="browser-item-caption">
+            <strong>${entry.label || "Target Face"}</strong>
+            <span>Frame ${entry.frameIndex ?? 0}</span>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function assignStrategyLabel(strategy) {
+  return (
+    {
+      first_source_to_all_targets: "First source face replaces all found target faces",
+      source_order_to_target_order: "Source faces are assigned to found target faces in order",
+    }[strategy] || strategy || "Not set"
+  );
+}
+
 function renderBrowserWorkflow(payload) {
   state.browserWorkflow = payload;
   renderTargetPreview(payload.targetMedia);
   renderSourcePreviews(payload.sourceFaces || []);
+  renderDetectedTargetFaces(payload.detectedTargetFaces);
   if (payload.previewFrame?.frameIndex !== undefined) {
     setTransportFrame(payload.previewFrame.frameIndex, { syncVideo: false });
   }
@@ -739,7 +780,8 @@ function renderBrowserWorkflow(payload) {
   workflowSummary.innerHTML = `
     <strong>Bereit:</strong> ${payload.canRun ? "Ja" : "Nein"}<br />
     <strong>Ausgabe:</strong> ${payload.outputFolder}<br />
-    <strong>Strategie:</strong> Erstes Quellgesicht auf alle erkannten Zielgesichter<br />
+    <strong>Replace Strategy:</strong> ${assignStrategyLabel(payload.assignStrategy)}<br />
+    <strong>Found Target Faces:</strong> ${payload.detectedTargetFaces?.count || 0}<br />
     ${payload.readyMessage}
   `;
   updateProcessingActionState();
@@ -1572,6 +1614,45 @@ async function previewSwapFrame() {
   }
 }
 
+async function findTargetFaces() {
+  clearFlash();
+  setLeftDockTab("media");
+  const originalLabel = findTargetFacesButton.textContent;
+  findTargetFacesButton.disabled = true;
+  findTargetFacesButton.textContent = "Finding...";
+  try {
+    const payload = await request("/api/browser-workflow/find-faces", {
+      method: "POST",
+      body: JSON.stringify({
+        frameIndex: clampFrame(state.transport.frameIndex),
+        workbench: state.workbench,
+      }),
+    });
+    renderBrowserWorkflow(payload.state);
+    showFlash(payload.message || "Zielgesichter wurden gefunden.");
+  } catch (error) {
+    showFlash(error.message, true);
+  } finally {
+    findTargetFacesButton.textContent = originalLabel;
+    updateProcessingActionState();
+  }
+}
+
+async function clearTargetFaces() {
+  clearFlash();
+  try {
+    setLeftDockTab("media");
+    const payload = await request("/api/browser-workflow/faces/clear", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    renderBrowserWorkflow(payload.state);
+    showFlash(payload.message || "Gefundene Zielgesichter wurden geleert.");
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
 function stepTargetFrame(delta) {
   const nextFrame = clampFrame(state.transport.frameIndex + delta);
   const video = activeTargetVideo();
@@ -1657,6 +1738,8 @@ document.getElementById("loadWorkspaceButton").addEventListener("click", () => {
 
 uploadTargetButton.addEventListener("click", uploadTargetMedia);
 uploadSourcesButton.addEventListener("click", uploadSourceFaces);
+findTargetFacesButton.addEventListener("click", findTargetFaces);
+clearTargetFacesButton.addEventListener("click", clearTargetFaces);
 workflowResetButton.addEventListener("click", resetWorkflow);
 workflowRunButton.addEventListener("click", runUploadedWorkflow);
 transportPrevFrameButton.addEventListener("click", () => stepTargetFrame(-1));
