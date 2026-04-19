@@ -423,12 +423,15 @@ function setSourcePreviewsFromInput(files) {
   });
 }
 
-function createMediaThumb(entry, url) {
+function createMediaThumb(entry, url, options = {}) {
+  const { controls = false, autoplay = false, loop = false } = options;
   if (url && entry.fileType === "image") {
     return `<img src="${url}" alt="${entry.name}" />`;
   }
   if (url && entry.fileType === "video") {
-    return `<video src="${url}" muted autoplay loop playsinline></video>`;
+    return `<video src="${url}" muted ${controls ? "controls" : ""} ${
+      autoplay ? "autoplay" : ""
+    } ${loop ? "loop" : ""} preload="metadata" playsinline></video>`;
   }
   return `<div class="media-placeholder">${entry.fileType === "video" ? "VIDEO" : "IMAGE"}</div>`;
 }
@@ -632,7 +635,7 @@ function renderComparePreview() {
     const entry = state.browserWorkflow.targetMedia;
     stageComparePreview.className = "stage-screen";
     stageComparePreview.innerHTML = `
-      ${createMediaThumb(entry, targetMediaUrl(entry))}
+      ${createMediaThumb(entry, targetMediaUrl(entry), { controls: entry.fileType === "video" })}
       <div class="stage-overlay">
         <strong>Preview Pending</strong>
         <span>${entry.fileType === "video" ? "Use Preview Frame for the selected detection frame." : entry.fileType}</span>
