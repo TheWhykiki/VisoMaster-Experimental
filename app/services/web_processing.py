@@ -33,6 +33,7 @@ RUNTIME_DEPENDENCIES = {
 
 _LOCK = threading.RLock()
 _PROCESS: subprocess.Popen[str] | None = None
+_PROCESS_LOG_HANDLE = None
 
 
 def _iso_now() -> str:
@@ -109,10 +110,20 @@ def _is_pid_running(pid: int | None) -> bool:
 
 
 def _active_process() -> subprocess.Popen[str] | None:
-    global _PROCESS
+    global _PROCESS, _PROCESS_LOG_HANDLE
     if _PROCESS is not None and _PROCESS.poll() is not None:
         _PROCESS = None
+        if _PROCESS_LOG_HANDLE is not None:
+            _PROCESS_LOG_HANDLE.close()
+            _PROCESS_LOG_HANDLE = None
     return _PROCESS
+
+
+def _close_process_log_handle() -> None:
+    global _PROCESS_LOG_HANDLE
+    if _PROCESS_LOG_HANDLE is not None:
+        _PROCESS_LOG_HANDLE.close()
+        _PROCESS_LOG_HANDLE = None
 
 
 def _status_template() -> dict[str, Any]:
@@ -220,7 +231,9 @@ def start_job(job_name: str) -> dict[str, Any]:
             }
         )
 
-        with LOG_FILE.open("w", encoding="utf-8") as log_handle:
+        _close_process_log_handle()
+        log_handle = LOG_FILE.open("w", encoding="utf-8")
+        try:
             process = subprocess.Popen(
                 _build_start_command(job_name),
                 cwd=project_root_path(),
@@ -229,9 +242,13 @@ def start_job(job_name: str) -> dict[str, Any]:
                 text=True,
                 env=_prepare_environment(),
             )
+        except Exception:
+            log_handle.close()
+            raise
 
-        global _PROCESS
+        global _PROCESS, _PROCESS_LOG_HANDLE
         _PROCESS = process
+        _PROCESS_LOG_HANDLE = log_handle
         initial_status["pid"] = process.pid
         initial_status["message"] = (
             f'Browser-Verarbeitung fuer Job "{job_name}" wurde gestartet.'
@@ -275,7 +292,9 @@ def start_upload_run(
             }
         )
 
-        with LOG_FILE.open("w", encoding="utf-8") as log_handle:
+        _close_process_log_handle()
+        log_handle = LOG_FILE.open("w", encoding="utf-8")
+        try:
             process = subprocess.Popen(
                 _build_request_command(request_file, STATUS_FILE),
                 cwd=project_root_path(),
@@ -284,9 +303,13 @@ def start_upload_run(
                 text=True,
                 env=_prepare_environment(),
             )
+        except Exception:
+            log_handle.close()
+            raise
 
-        global _PROCESS
+        global _PROCESS, _PROCESS_LOG_HANDLE
         _PROCESS = process
+        _PROCESS_LOG_HANDLE = log_handle
         initial_status["pid"] = process.pid
         initial_status["message"] = "Browser-Direktlauf wurde gestartet."
         _persist_status(initial_status)
@@ -471,8 +494,10 @@ def stop_job() -> dict[str, Any]:
             finally:
                 global _PROCESS
                 _PROCESS = None
+                _close_process_log_handle()
         elif _is_pid_running(pid):
             os.kill(pid, signal.SIGTERM)
+            _close_process_log_handle()
 
         status.update(
             {

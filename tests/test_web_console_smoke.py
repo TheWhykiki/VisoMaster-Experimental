@@ -186,6 +186,13 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn('showFlash(workflow.nextAction, true);', source)
         self.assertIn("Outdated Detection", source)
 
+    def test_web_processing_keeps_async_log_handle_open(self) -> None:
+        source = (ROOT / "app" / "services" / "web_processing.py").read_text(encoding="utf-8")
+        self.assertIn("_PROCESS_LOG_HANDLE = None", source)
+        self.assertIn("def _close_process_log_handle() -> None:", source)
+        self.assertIn("_PROCESS_LOG_HANDLE = log_handle", source)
+        self.assertIn("_close_process_log_handle()", source)
+
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
     def test_workbench_defaults_are_stable(self) -> None:
