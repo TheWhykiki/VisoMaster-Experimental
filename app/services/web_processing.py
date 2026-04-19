@@ -54,6 +54,26 @@ def _read_log_tail(path: Path, limit: int = LOG_TAIL_LINE_COUNT) -> list[str]:
     return [line.rstrip() for line in lines[-limit:] if line.strip()]
 
 
+def _detailed_failure_message(
+    status_file: Path,
+    log_file: Path,
+    fallback: str,
+) -> str:
+    status = _read_json_file(status_file)
+    message = str(status.get("message", "")).strip()
+    if message and message not in {
+        "Geswappte Vorschau wird erzeugt.",
+        "Zielgesichter werden im Browser-Workflow gesucht.",
+        "Browser-Direktlauf wird gestartet.",
+    }:
+        return message
+
+    log_tail = _read_log_tail(log_file, limit=12)
+    if log_tail:
+        return log_tail[-1]
+    return fallback
+
+
 def _is_pid_running(pid: int | None) -> bool:
     if not pid or pid <= 0:
         return False
@@ -297,8 +317,9 @@ def generate_upload_preview(
 
         final_status = _read_json_file(PREVIEW_STATUS_FILE)
         if process.returncode != 0:
-            message = final_status.get(
-                "message",
+            message = _detailed_failure_message(
+                PREVIEW_STATUS_FILE,
+                PREVIEW_LOG_FILE,
                 "Die geswappte Vorschau konnte nicht erzeugt werden.",
             )
             raise ValueError(message)
@@ -366,8 +387,9 @@ def generate_found_faces(
 
         final_status = _read_json_file(PREVIEW_STATUS_FILE)
         if process.returncode != 0:
-            message = final_status.get(
-                "message",
+            message = _detailed_failure_message(
+                PREVIEW_STATUS_FILE,
+                PREVIEW_LOG_FILE,
                 "Die Zielgesicht-Suche konnte nicht abgeschlossen werden.",
             )
             raise ValueError(message)

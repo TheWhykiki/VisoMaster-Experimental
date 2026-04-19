@@ -101,7 +101,7 @@ set "EXIT_CODE=0"
 goto :eof
 
 :EnsureCondaPackages
-call "%CONDA_BAT%" run -n "%ENV_NAME%" python -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python -c "import PySide6, torch, cv2, onnxruntime, numpy, PIL" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     set "EXIT_CODE=0"
     goto :eof
@@ -133,7 +133,7 @@ set "TARGET_KIND=%~3"
 
 IF /I "%TARGET_KIND%"=="path" goto :EnsurePythonPackagesPath
 
-%TARGET_PY% -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+%TARGET_PY% -c "import PySide6, torch, cv2, onnxruntime, numpy, PIL" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     set "EXIT_CODE=0"
     goto :eof
@@ -159,7 +159,7 @@ set "EXIT_CODE=0"
 goto :eof
 
 :EnsurePythonPackagesPath
-"%TARGET_PY%" -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+"%TARGET_PY%" -c "import PySide6, torch, cv2, onnxruntime, numpy, PIL" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     set "EXIT_CODE=0"
     goto :eof
