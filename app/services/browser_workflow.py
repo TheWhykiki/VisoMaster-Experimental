@@ -222,6 +222,109 @@ def _preview_state_from(meta_path: Path, route: str) -> dict[str, Any] | None:
     return payload
 
 
+def _workflow_status(
+    target: dict[str, Any] | None,
+    sources: list[dict[str, Any]],
+    preview_frame: dict[str, Any] | None,
+    swap_preview: dict[str, Any] | None,
+    detected_faces: dict[str, Any] | None,
+) -> dict[str, Any]:
+    is_video_target = bool(target and target.get("fileType") == "video")
+    preview_frame_index = int(preview_frame.get("frameIndex", 0)) if preview_frame else 0
+    detected_frame_index = (
+        int(detected_faces.get("frameIndex", 0)) if detected_faces else preview_frame_index
+    )
+    swap_preview_frame_index = (
+        int(swap_preview.get("frameIndex", 0)) if swap_preview else preview_frame_index
+    )
+
+    has_target = bool(target)
+    has_sources = bool(sources)
+    has_preview_frame = bool(target and (not is_video_target or preview_frame))
+    has_detected_faces = bool(
+        detected_faces and int(detected_faces.get("count", 0) or 0) > 0
+    )
+    has_swap_preview = bool(swap_preview)
+
+    steps = [
+        {
+            "id": "target",
+            "label": "Target laden",
+            "ready": has_target,
+            "detail": (
+                target["name"]
+                if has_target
+                else "Bitte ein Zielbild oder Zielvideo hochladen."
+            ),
+        },
+        {
+            "id": "sources",
+            "label": "Source Faces laden",
+            "ready": has_sources,
+            "detail": (
+                f"{len(sources)} Quellgesicht(er) bereit."
+                if has_sources
+                else "Bitte mindestens ein Quellgesicht hochladen."
+            ),
+        },
+        {
+            "id": "frame",
+            "label": "Detection Frame bestaetigen",
+            "ready": has_preview_frame,
+            "detail": (
+                f"Frame {preview_frame_index} als Detection-Preview gespeichert."
+                if has_preview_frame
+                else "Bei Videos zuerst Preview Frame fuer den aktuellen Scrub-Frame erzeugen."
+            ),
+        },
+        {
+            "id": "detect",
+            "label": "Target Faces finden",
+            "ready": has_detected_faces,
+            "detail": (
+                f"{int(detected_faces.get('count', 0) or 0)} Zielgesicht(er) auf Frame {detected_frame_index} erkannt."
+                if has_detected_faces and detected_faces
+                else "Noch keine Zielgesichter fuer den aktuellen Detection-Frame gefunden."
+            ),
+        },
+        {
+            "id": "preview",
+            "label": "Swap Preview pruefen",
+            "ready": has_swap_preview,
+            "detail": (
+                f"Geswappte Vorschau fuer Frame {swap_preview_frame_index} vorhanden."
+                if has_swap_preview
+                else "Noch keine geswappte Vorschau berechnet."
+            ),
+        },
+    ]
+
+    if not has_target:
+        next_action = "Lade zuerst das Zielmedium."
+    elif not has_sources:
+        next_action = "Lade jetzt mindestens ein Quellgesicht."
+    elif not has_preview_frame:
+        next_action = "Erzeuge jetzt mit Preview Frame einen bestaetigten Detection-Frame."
+    elif not has_detected_faces:
+        next_action = "Finde jetzt die Zielgesichter auf dem aktuellen Detection-Frame."
+    elif not has_swap_preview:
+        next_action = "Erzeuge jetzt eine geswappte Vorschau."
+    else:
+        next_action = "Alle Schritte sind bereit. Du kannst jetzt den eigentlichen Swap starten."
+
+    return {
+        "isVideoTarget": is_video_target,
+        "previewFrameIndex": preview_frame_index,
+        "detectedFrameIndex": detected_frame_index,
+        "swapPreviewFrameIndex": swap_preview_frame_index,
+        "canFindFaces": has_target and has_preview_frame,
+        "canSwapPreview": has_target and has_sources and has_preview_frame and has_detected_faces,
+        "canRun": has_target and has_sources and has_preview_frame and has_detected_faces,
+        "nextAction": next_action,
+        "steps": steps,
+    }
+
+
 def _clear_preview_asset(meta_path: Path) -> None:
     payload = _read_json(meta_path)
     asset_name = str(payload.get("assetName", "")).strip()
@@ -435,6 +538,7 @@ def generate_target_preview(frame_index: int = 0) -> dict[str, Any]:
         raise ValueError("Nur Bilder und Videos koennen als Zielmedium verwendet werden.")
 
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    clear_detected_faces()
     _clear_preview_asset(TARGET_PREVIEW_META_PATH)
     if file_type == "video":
         if not cv2.imwrite(str(preview_asset_path), frame):
@@ -462,6 +566,16 @@ def current_state() -> dict[str, Any]:
     target = _entry(target_files[0]) if target_files else None
     sources = [_entry(path) for path in source_files if path.is_file()]
     workbench_state = web_workbench.read_state()
+    preview_frame = _preview_state()
+    swap_preview = _swap_preview_state()
+    detected_faces = _detected_faces_state()
+    workflow = _workflow_status(
+        target=target,
+        sources=sources,
+        preview_frame=preview_frame,
+        swap_preview=swap_preview,
+        detected_faces=detected_faces,
+    )
     return {
         "targetMedia": target,
         "sourceFaces": sources,
@@ -477,9 +591,10 @@ def current_state() -> dict[str, Any]:
             "BrowserAssignStrategySelection",
             "first_source_to_all_targets",
         ),
-        "previewFrame": _preview_state(),
-        "swapPreview": _swap_preview_state(),
-        "detectedTargetFaces": _detected_faces_state(),
+        "previewFrame": preview_frame,
+        "swapPreview": swap_preview,
+        "detectedTargetFaces": detected_faces,
+        "workflow": workflow,
         "workbench": workbench_state,
     }
 

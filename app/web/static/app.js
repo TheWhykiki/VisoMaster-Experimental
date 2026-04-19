@@ -34,6 +34,9 @@ const state = {
     playing: false,
     syncingVideo: false,
   },
+  ui: {
+    busyAction: null,
+  },
 };
 
 const jobsList = document.getElementById("jobsList");
@@ -69,6 +72,10 @@ const quickRunWorkflowButton = document.getElementById("quickRunWorkflowButton")
 const workflowResetButton = document.getElementById("workflowResetButton");
 const workflowRunButton = document.getElementById("workflowRunButton");
 const workflowSummary = document.getElementById("workflowSummary");
+const workflowGuideTitle = document.getElementById("workflowGuideTitle");
+const workflowGuideBadge = document.getElementById("workflowGuideBadge");
+const workflowChecklist = document.getElementById("workflowChecklist");
+const workflowNextAction = document.getElementById("workflowNextAction");
 const detectionFrameInput = document.getElementById("detectionFrameInput");
 const targetMediaPreview = document.getElementById("targetMediaPreview");
 const sourceFacePreviewList = document.getElementById("sourceFacePreviewList");
@@ -85,6 +92,8 @@ const transportSwapPreviewButton = document.getElementById("transportSwapPreview
 const transportFrameSlider = document.getElementById("transportFrameSlider");
 const transportFrameInput = document.getElementById("transportFrameInput");
 const transportMeta = document.getElementById("transportMeta");
+const quickActionTitle = document.getElementById("quickActionTitle");
+const quickActionHint = document.getElementById("quickActionHint");
 const runtimeBarFill = document.getElementById("runtimeBarFill");
 const runtimeBarLabel = document.getElementById("runtimeBarLabel");
 const runtimeBarCaption = document.getElementById("runtimeBarCaption");
@@ -393,18 +402,25 @@ function processingStatusLabel(status) {
 function updateProcessingActionState() {
   const selectedJobName =
     state.selection && state.selection.type === "jobs" ? state.selection.name : null;
-  const isActive = Boolean(state.processing?.active);
-  const hasTargetMedia = Boolean(state.browserWorkflow?.targetMedia);
-  const canRunWorkflow = Boolean(state.browserWorkflow?.canRun) && !isActive;
-  processingStartButton.disabled = !selectedJobName || isActive;
+  const workflow = workflowState();
+  const isActive = workflow.processingActive;
+  const busy = Boolean(workflow.busyAction);
+  const canRunWorkflow = workflow.canRun;
+  const canFindFaces = workflow.canFindFaces;
+  const canSwapPreview = workflow.canSwapPreview;
+
+  processingStartButton.disabled = !selectedJobName || isActive || busy;
   processingStopButton.disabled = !isActive;
   workflowRunButton.disabled = !canRunWorkflow;
-  findTargetFacesButton.disabled = !hasTargetMedia || isActive;
+  findTargetFacesButton.disabled = !canFindFaces;
   clearTargetFacesButton.disabled =
-    !(state.browserWorkflow?.detectedTargetFaces?.count > 0) || isActive;
-  quickFindTargetFacesButton.disabled = findTargetFacesButton.disabled;
-  quickSwapPreviewButton.disabled = transportSwapPreviewButton.disabled;
-  quickRunWorkflowButton.disabled = workflowRunButton.disabled;
+    !(state.browserWorkflow?.detectedTargetFaces?.count > 0) || isActive || busy;
+  quickFindTargetFacesButton.disabled = !canFindFaces;
+  quickSwapPreviewButton.disabled = !canSwapPreview;
+  quickRunWorkflowButton.disabled = !canRunWorkflow;
+  transportSwapPreviewButton.disabled = !canSwapPreview;
+  transportPreviewButton.disabled =
+    !state.browserWorkflow?.targetMedia || isActive || busy;
   processingSelection.textContent = selectedJobName
     ? `Ausgewaehlter Job: ${selectedJobName}`
     : "Bitte links einen Job auswaehlen oder direkt mit Uploads arbeiten.";
@@ -481,6 +497,118 @@ function setFindFacesBusy(isBusy) {
   quickFindTargetFacesButton.textContent = isBusy ? busyLabel : idleQuickLabel;
 }
 
+function workflowState(payload = state.browserWorkflow) {
+  const target = payload?.targetMedia;
+  const sources = payload?.sourceFaces || [];
+  const previewFrame = payload?.previewFrame;
+  const detectedFaces = payload?.detectedTargetFaces;
+  const swapPreview = payload?.swapPreview;
+  const isVideo = target?.fileType === "video";
+  const requestedFrame = clampFrame(detectionFrameInput.value || state.transport.frameIndex || 0);
+  const previewFrameIndex = Number(previewFrame?.frameIndex ?? 0);
+  const detectedFrameIndex = Number(detectedFaces?.frameIndex ?? previewFrameIndex);
+  const swapPreviewFrameIndex = Number(swapPreview?.frameIndex ?? previewFrameIndex);
+  const previewMatchesFrame = Boolean(target) && (!isVideo || Boolean(previewFrame && previewFrameIndex === requestedFrame));
+  const detectionMatchesFrame =
+    Boolean(detectedFaces?.count) && (!isVideo || detectedFrameIndex === requestedFrame);
+  const swapPreviewMatchesFrame =
+    Boolean(swapPreview?.url) && (!isVideo || swapPreviewFrameIndex === requestedFrame);
+  const processingActive = Boolean(state.processing?.active);
+  const busyAction = state.ui.busyAction;
+
+  const steps = [
+    {
+      id: "target",
+      label: "Target",
+      ready: Boolean(target),
+      detail: target ? target.name : "Target fehlt",
+    },
+    {
+      id: "sources",
+      label: "Sources",
+      ready: sources.length > 0,
+      detail: sources.length ? `${sources.length} Source Face(s)` : "Source Faces fehlen",
+    },
+    {
+      id: "frame",
+      label: "Detection Frame",
+      ready: previewMatchesFrame,
+      detail: previewMatchesFrame
+        ? `Frame ${requestedFrame} bestaetigt`
+        : isVideo
+          ? "Preview Frame fuer aktuellen Scrub-Frame fehlt"
+          : "Bildziel braucht keine Extra-Vorschau",
+    },
+    {
+      id: "detect",
+      label: "Find Faces",
+      ready: detectionMatchesFrame,
+      detail: detectionMatchesFrame
+        ? `${detectedFaces.count} Gesicht(er) auf Frame ${requestedFrame}`
+        : "Noch keine Zielgesichter fuer diesen Frame",
+    },
+    {
+      id: "preview",
+      label: "Swap Preview",
+      ready: swapPreviewMatchesFrame,
+      detail: swapPreviewMatchesFrame
+        ? `Preview fuer Frame ${requestedFrame} bereit`
+        : "Noch keine passende Swap Preview",
+    },
+  ];
+
+  let nextAction = "Lade zuerst das Zielmedium.";
+  if (busyAction) {
+    nextAction = busyAction;
+  } else if (!target) {
+    nextAction = "Lade zuerst das Zielmedium.";
+  } else if (!sources.length) {
+    nextAction = "Lade jetzt mindestens ein Quellgesicht.";
+  } else if (!previewMatchesFrame) {
+    nextAction = isVideo
+      ? "Waehle den Frame und klicke dann Preview Frame."
+      : "Das Zielbild ist bereit. Du kannst direkt Gesichter finden.";
+  } else if (!detectionMatchesFrame) {
+    nextAction = "Klicke jetzt Find Faces fuer den aktuellen Detection-Frame.";
+  } else if (!swapPreviewMatchesFrame) {
+    nextAction = "Klicke jetzt Swap Preview, bevor du den echten Lauf startest.";
+  } else {
+    nextAction = "Alles bereit. Du kannst jetzt Swap Faces starten.";
+  }
+
+  return {
+    requestedFrame,
+    isVideo,
+    previewMatchesFrame,
+    detectionMatchesFrame,
+    swapPreviewMatchesFrame,
+    canFindFaces: Boolean(target) && previewMatchesFrame && !processingActive && !busyAction,
+    canSwapPreview:
+      Boolean(target) &&
+      sources.length > 0 &&
+      previewMatchesFrame &&
+      detectionMatchesFrame &&
+      !processingActive &&
+      !busyAction,
+    canRun:
+      Boolean(target) &&
+      sources.length > 0 &&
+      previewMatchesFrame &&
+      detectionMatchesFrame &&
+      !processingActive &&
+      !busyAction,
+    busyAction,
+    processingActive,
+    nextAction,
+    steps,
+  };
+}
+
+function setUiBusy(actionLabel = null) {
+  state.ui.busyAction = actionLabel;
+  updateProcessingActionState();
+}
+
 function clampFrame(frame) {
   const frameMax = Number(state.transport.frameMax || 0);
   return Math.max(0, Math.min(frameMax, Math.floor(Number(frame) || 0)));
@@ -488,14 +616,16 @@ function clampFrame(frame) {
 
 function syncTransportControls() {
   const isVideo = state.transport.mediaType === "video";
+  const workflow = workflowState();
   const disabled = !isVideo;
   transportPrevFrameButton.disabled = disabled;
   transportPlayButton.disabled = disabled;
   transportNextFrameButton.disabled = disabled;
   transportFrameSlider.disabled = disabled;
   transportFrameInput.disabled = disabled;
-  transportPreviewButton.disabled = !state.browserWorkflow?.targetMedia;
-  transportSwapPreviewButton.disabled = !state.browserWorkflow?.canRun;
+  transportPreviewButton.disabled =
+    !state.browserWorkflow?.targetMedia || workflow.processingActive || Boolean(workflow.busyAction);
+  transportSwapPreviewButton.disabled = !workflow.canSwapPreview;
   transportFrameSlider.max = String(Math.max(0, state.transport.frameMax));
   transportFrameInput.max = String(Math.max(0, state.transport.frameMax));
   transportFrameSlider.value = String(clampFrame(state.transport.frameIndex));
@@ -595,6 +725,7 @@ function attachTargetVideoListeners(entry) {
 }
 
 function renderComparePreview() {
+  const workflow = workflowState();
   const outputPath = state.processing?.outputPath || "";
   const outputUrl = state.processing?.outputDownloadUrl;
   if (outputPath && outputUrl && isImageFile(outputPath)) {
@@ -625,7 +756,7 @@ function renderComparePreview() {
     return;
   }
 
-  if (state.browserWorkflow?.swapPreview?.url) {
+  if (state.browserWorkflow?.swapPreview?.url && workflow.swapPreviewMatchesFrame) {
     const preview = state.browserWorkflow.swapPreview;
     stageComparePreview.className = "stage-screen";
     stageComparePreview.innerHTML = `
@@ -641,7 +772,7 @@ function renderComparePreview() {
     return;
   }
 
-  if (state.browserWorkflow?.previewFrame?.url) {
+  if (state.browserWorkflow?.previewFrame?.url && workflow.previewMatchesFrame) {
     const preview = state.browserWorkflow.previewFrame;
     stageComparePreview.className = "stage-screen";
     stageComparePreview.innerHTML = `
@@ -664,7 +795,11 @@ function renderComparePreview() {
       ${createMediaThumb(entry, targetMediaUrl(entry), { controls: entry.fileType === "video" })}
       <div class="stage-overlay">
         <strong>Preview Pending</strong>
-        <span>${entry.fileType === "video" ? "Use Preview Frame for the selected detection frame." : entry.fileType}</span>
+        <span>${
+          entry.fileType === "video"
+            ? "Use Preview Frame for the selected detection frame, then Find Faces."
+            : "Use Find Faces, then create a Swap Preview."
+        }</span>
       </div>
     `;
     return;
@@ -773,6 +908,10 @@ function renderSourcePreviews(entries = []) {
 
 function renderDetectedTargetFaces(payload) {
   const faces = payload?.faces || [];
+  const requestedFrame = clampFrame(detectionFrameInput.value || state.transport.frameIndex || 0);
+  const isCurrentFrame = faces.length
+    ? Number(payload?.frameIndex ?? 0) === requestedFrame
+    : false;
   if (!faces.length) {
     targetFacesPreviewList.className = "browser-grid input-grid empty";
     targetFacesPreviewList.textContent = "No target faces detected yet.";
@@ -793,6 +932,17 @@ function renderDetectedTargetFaces(payload) {
       `
     )
     .join("");
+  if (!isCurrentFrame) {
+    targetFacesPreviewList.insertAdjacentHTML(
+      "afterbegin",
+      `
+        <article class="workflow-warning">
+          <strong>Outdated Detection</strong>
+          <span>The shown faces belong to frame ${payload.frameIndex ?? 0}. Create a new Preview Frame and run Find Faces again for the current frame ${requestedFrame}.</span>
+        </article>
+      `
+    );
+  }
 }
 
 function assignStrategyLabel(strategy) {
@@ -804,21 +954,53 @@ function assignStrategyLabel(strategy) {
   );
 }
 
+function renderWorkflowGuide(payload) {
+  const workflow = workflowState(payload);
+  workflowGuideTitle.textContent = workflow.isVideo
+    ? "Video Swap Flow"
+    : "Image Swap Flow";
+  workflowGuideBadge.textContent = workflow.busyAction
+    ? "Working"
+    : workflow.canRun
+      ? "Ready To Swap"
+      : "Setup Needed";
+  quickActionTitle.textContent = workflow.canRun
+    ? "Ready To Run"
+    : "Recommended Order";
+  quickActionHint.textContent = workflow.nextAction;
+  workflowNextAction.textContent = workflow.nextAction;
+  workflowChecklist.innerHTML = workflow.steps
+    .map(
+      (step, index) => `
+        <article class="workflow-step ${step.ready ? "is-ready" : "is-open"}">
+          <span class="workflow-step-index">${index + 1}</span>
+          <div>
+            <strong>${step.label}</strong>
+            <span>${step.detail}</span>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
 function renderBrowserWorkflow(payload) {
   state.browserWorkflow = payload;
   renderTargetPreview(payload.targetMedia);
   renderSourcePreviews(payload.sourceFaces || []);
   renderDetectedTargetFaces(payload.detectedTargetFaces);
+  renderWorkflowGuide(payload);
   if (payload.previewFrame?.frameIndex !== undefined) {
     setTransportFrame(payload.previewFrame.frameIndex, { syncVideo: false });
   }
 
+  const workflow = workflowState(payload);
   workflowSummary.innerHTML = `
-    <strong>Bereit:</strong> ${payload.canRun ? "Ja" : "Nein"}<br />
+    <strong>Bereit:</strong> ${workflow.canRun ? "Ja" : "Nein"}<br />
     <strong>Ausgabe:</strong> ${payload.outputFolder}<br />
     <strong>Replace Strategy:</strong> ${assignStrategyLabel(payload.assignStrategy)}<br />
     <strong>Found Target Faces:</strong> ${payload.detectedTargetFaces?.count || 0}<br />
-    ${payload.readyMessage}
+    <strong>Naechster Schritt:</strong> ${workflow.nextAction}
   `;
   updateProcessingActionState();
 }
@@ -1535,6 +1717,7 @@ function resetWorkbench() {
 
 async function uploadTargetMedia() {
   clearFlash();
+  setUiBusy("Zielmedium wird hochgeladen...");
   try {
     const files = Array.from(targetUploadInput.files || []);
     if (!files.length) {
@@ -1547,11 +1730,14 @@ async function uploadTargetMedia() {
     showFlash(`Zielmedium "${payload.saved.name}" hochgeladen.`);
   } catch (error) {
     showFlash(error.message, true);
+  } finally {
+    setUiBusy(null);
   }
 }
 
 async function uploadSourceFaces() {
   clearFlash();
+  setUiBusy("Quellgesichter werden hochgeladen...");
   try {
     const files = Array.from(sourceUploadInput.files || []);
     if (!files.length) {
@@ -1564,11 +1750,14 @@ async function uploadSourceFaces() {
     showFlash(`${payload.saved.length} Quellgesicht(er) hochgeladen.`);
   } catch (error) {
     showFlash(error.message, true);
+  } finally {
+    setUiBusy(null);
   }
 }
 
 async function resetWorkflow() {
   clearFlash();
+  setUiBusy("Session wird geleert...");
   try {
     revokePreviewUrls();
     targetUploadInput.value = "";
@@ -1584,11 +1773,19 @@ async function resetWorkflow() {
     showFlash("Direktlauf-Zustand geleert.");
   } catch (error) {
     showFlash(error.message, true);
+  } finally {
+    setUiBusy(null);
   }
 }
 
 async function runUploadedWorkflow() {
   clearFlash();
+  const workflow = workflowState();
+  if (!workflow.canRun) {
+    showFlash(workflow.nextAction, true);
+    return;
+  }
+  setUiBusy("Swap Faces wird gestartet...");
   try {
     const parsedFrame = Number(detectionFrameInput.value || 0);
     const detectionFrame = Number.isFinite(parsedFrame)
@@ -1607,11 +1804,18 @@ async function runUploadedWorkflow() {
     showFlash("Browser-Direktlauf gestartet.");
   } catch (error) {
     showFlash(error.message, true);
+  } finally {
+    setUiBusy(null);
   }
 }
 
 async function previewTargetFrame() {
   clearFlash();
+  if (!state.browserWorkflow?.targetMedia) {
+    showFlash("Bitte zuerst ein Zielmedium laden.", true);
+    return;
+  }
+  setUiBusy("Preview Frame wird erzeugt...");
   try {
     const payload = await request("/api/browser-workflow/preview/frame", {
       method: "POST",
@@ -1624,11 +1828,19 @@ async function previewTargetFrame() {
     showFlash(`Frame ${payload.previewFrame?.frameIndex ?? 0} als Preview geladen.`);
   } catch (error) {
     showFlash(error.message, true);
+  } finally {
+    setUiBusy(null);
   }
 }
 
 async function previewSwapFrame() {
   clearFlash();
+  const workflow = workflowState();
+  if (!workflow.canSwapPreview) {
+    showFlash(workflow.nextAction, true);
+    return;
+  }
+  setUiBusy("Swap Preview wird berechnet...");
   const originalLabel = transportSwapPreviewButton.textContent;
   transportSwapPreviewButton.disabled = true;
   transportSwapPreviewButton.textContent = "Rendering...";
@@ -1645,6 +1857,7 @@ async function previewSwapFrame() {
   } catch (error) {
     showFlash(error.message, true);
   } finally {
+    setUiBusy(null);
     transportSwapPreviewButton.textContent = originalLabel;
     syncTransportControls();
   }
@@ -1653,6 +1866,12 @@ async function previewSwapFrame() {
 async function findTargetFaces() {
   clearFlash();
   setLeftDockTab("media");
+  const workflow = workflowState();
+  if (!workflow.canFindFaces) {
+    showFlash(workflow.nextAction, true);
+    return;
+  }
+  setUiBusy("Target Faces werden gesucht...");
   setFindFacesBusy(true);
   try {
     const payload = await request("/api/browser-workflow/find-faces", {
@@ -1667,6 +1886,7 @@ async function findTargetFaces() {
   } catch (error) {
     showFlash(error.message, true);
   } finally {
+    setUiBusy(null);
     setFindFacesBusy(false);
     updateProcessingActionState();
   }
@@ -1674,6 +1894,7 @@ async function findTargetFaces() {
 
 async function clearTargetFaces() {
   clearFlash();
+  setUiBusy("Gefundene Zielgesichter werden geleert...");
   try {
     setLeftDockTab("media");
     const payload = await request("/api/browser-workflow/faces/clear", {
@@ -1684,6 +1905,8 @@ async function clearTargetFaces() {
     showFlash(payload.message || "Gefundene Zielgesichter wurden geleert.");
   } catch (error) {
     showFlash(error.message, true);
+  } finally {
+    setUiBusy(null);
   }
 }
 

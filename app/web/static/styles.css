@@ -648,6 +648,88 @@ textarea {
   font-size: 0.82rem;
 }
 
+.workflow-guide-card {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(125, 207, 241, 0.18);
+  border-radius: 10px;
+  background: rgba(20, 24, 29, 0.86);
+  display: grid;
+  gap: 12px;
+}
+
+.workflow-guide-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workflow-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.workflow-step,
+.workflow-warning {
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: rgba(36, 39, 44, 0.92);
+  padding: 10px;
+}
+
+.workflow-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.workflow-step.is-ready {
+  border-color: rgba(71, 187, 120, 0.38);
+  background: rgba(28, 50, 35, 0.48);
+}
+
+.workflow-step.is-open {
+  border-color: rgba(88, 183, 222, 0.24);
+}
+
+.workflow-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(88, 183, 222, 0.18);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.workflow-step strong,
+.workflow-warning strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.workflow-step span,
+.workflow-warning span,
+.workflow-next-action {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.workflow-warning {
+  grid-column: 1 / -1;
+  border-color: rgba(176, 26, 26, 0.32);
+  background: rgba(64, 28, 28, 0.58);
+}
+
+.workflow-next-action {
+  margin: 0;
+}
+
 .quick-action-bar {
   margin-top: 12px;
   padding: 12px;
@@ -1193,6 +1275,7 @@ input[type="range"] {
   .compare-stage,
   .workflow-workspace,
   .project-grid,
+  .workflow-checklist,
   .builder-grid,
   .builder-preview-grid,
   .status-overview,

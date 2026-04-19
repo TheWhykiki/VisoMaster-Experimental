@@ -355,10 +355,24 @@
 
             <div id="transportMeta" class="transport-meta">No video loaded.</div>
 
+            <article class="workflow-guide-card">
+              <div class="workflow-guide-copy">
+                <div>
+                  <p class="eyebrow">Guided Flow</p>
+                  <h3 id="workflowGuideTitle">Swap Flow</h3>
+                </div>
+                <span id="workflowGuideBadge" class="info-pill">Waiting</span>
+              </div>
+              <div id="workflowChecklist" class="workflow-checklist"></div>
+              <p id="workflowNextAction" class="workflow-next-action">
+                Lade Target und Source Faces, um den Flow zu starten.
+              </p>
+            </article>
+
             <div class="quick-action-bar">
               <div class="quick-action-copy">
-                <strong>Recommended Order</strong>
-                <span>Load media, choose a frame, find target faces, preview the swap, then run it.</span>
+                <strong id="quickActionTitle">Recommended Order</strong>
+                <span id="quickActionHint">Load media, choose a frame, find target faces, preview the swap, then run it.</span>
               </div>
               <div class="quick-action-buttons">
                 <button id="quickFindTargetFacesButton" class="primary" type="button">1. Find Faces</button>

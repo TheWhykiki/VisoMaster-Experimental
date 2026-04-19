@@ -367,7 +367,7 @@ class Runner:
             Image.fromarray(cropped_face[..., ::-1]).save(asset_path, "PNG")
             faces_payload.append(
                 {
-                    "assetName": str(Path("faces") / asset_name),
+                    "assetName": (Path("faces") / asset_name).as_posix(),
                     "label": f"Target Face {index}",
                     "faceId": str(target_face.face_id),
                     "frameIndex": int(frame_index),

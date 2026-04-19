@@ -120,6 +120,7 @@ class TestWebConsoleStaticContract(unittest.TestCase):
             "Preview Frame",
             "Swap Preview",
             "Find Faces",
+            "Guided Flow",
         ):
             self.assertIn(label, html)
 
@@ -177,6 +178,14 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn("could not be downloaded automatically", source)
         self.assertIn("self.ensure_model_file(model_name)", source)
 
+    def test_app_js_contains_guided_workflow_state_machine(self) -> None:
+        source = (ROOT / "app" / "web" / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function workflowState(payload = state.browserWorkflow)", source)
+        self.assertIn("function renderWorkflowGuide(payload)", source)
+        self.assertIn('setUiBusy("Swap Preview wird berechnet...")', source)
+        self.assertIn('showFlash(workflow.nextAction, true);', source)
+        self.assertIn("Outdated Detection", source)
+
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
     def test_workbench_defaults_are_stable(self) -> None:
@@ -220,6 +229,40 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
         state = browser_workflow.current_state()
         self.assertEqual(0, state["previewFrame"]["frameIndex"])
         self.assertIn("/api/browser-workflow/preview/frame", state["previewFrame"]["url"])
+        self.assertTrue(state["workflow"]["steps"][2]["ready"])
+
+    def test_preview_refresh_clears_stale_detected_faces_and_swap_preview(self) -> None:
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+        browser_workflow.save_source_uploads([("source-a.jpg", PNG_BYTES)])
+
+        preview_path = browser_workflow.swap_preview_output_path()
+        preview_path.write_bytes(PNG_BYTES)
+        browser_workflow.register_swap_preview(preview_path, frame_index=4, source_count=1)
+
+        faces_dir = browser_workflow.found_faces_dir()
+        face_path = faces_dir / "target_face_01.png"
+        face_path.write_bytes(PNG_BYTES)
+        browser_workflow.register_detected_faces(
+            {
+                "frameIndex": 4,
+                "targetName": "target.png",
+                "faces": [
+                    {
+                        "assetName": "faces/target_face_01.png",
+                        "label": "Target Face 1",
+                        "faceId": "101",
+                        "frameIndex": 4,
+                    }
+                ],
+            }
+        )
+
+        browser_workflow.generate_target_preview(0)
+        state = browser_workflow.current_state()
+        self.assertIsNone(state["swapPreview"])
+        self.assertIsNone(state["detectedTargetFaces"])
+        self.assertFalse(state["workflow"]["steps"][3]["ready"])
+        self.assertFalse(state["workflow"]["steps"][4]["ready"])
 
     def test_swap_preview_can_be_registered_in_isolated_state(self) -> None:
         browser_workflow.save_target_upload("target.png", PNG_BYTES)
