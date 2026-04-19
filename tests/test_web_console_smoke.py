@@ -128,6 +128,16 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn('id="stageTargetVideo"', js)
         self.assertRegex(js, r'id="stageTargetVideo"[\s\S]*?controls')
 
+    def test_html_wires_golden_layout_assets(self) -> None:
+        html = (ROOT / "app" / "web" / "static" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="layoutRoot"', html)
+        self.assertIn('/static/layout.js', html)
+        self.assertIn('/static/vendor/golden-layout/css/goldenlayout-base.css', html)
+        self.assertTrue((ROOT / "app" / "web" / "static" / "layout.js").is_file())
+        self.assertTrue(
+            (ROOT / "app" / "web" / "static" / "vendor" / "golden-layout" / "esm" / "index.js").is_file()
+        )
+
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
     def test_workbench_defaults_are_stable(self) -> None:

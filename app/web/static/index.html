@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VisoMaster Web Console</title>
+    <link rel="stylesheet" href="/static/vendor/golden-layout/css/goldenlayout-base.css" />
+    <link rel="stylesheet" href="/static/vendor/golden-layout/css/themes/goldenlayout-dark-theme.css" />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -28,9 +30,16 @@
 
       <div id="globalFlash" class="global-flash" hidden></div>
 
-      <main class="desktop-grid workbench-grid">
-        <aside class="left-dock">
-          <section class="dock-panel dock-shell">
+      <main class="layout-root-shell">
+        <div id="layoutRoot" class="layout-root" aria-label="VisoMaster Workbench Layout"></div>
+
+        <div id="panelTemplates" hidden>
+          <section
+            id="panelWorkflow"
+            class="dock-panel dock-shell layout-panel-template"
+            data-layout-panel="workflow"
+            data-panel-title="Workflow"
+          >
             <div class="dock-shell-header">
               <div>
                 <p class="eyebrow">Workflow</p>
@@ -280,10 +289,13 @@
               </section>
             </div>
           </section>
-        </aside>
 
-        <section class="center-stage">
-          <section class="dock-panel viewer-panel">
+          <section
+            id="panelViewer"
+            class="dock-panel viewer-panel layout-panel-template"
+            data-layout-panel="viewer"
+            data-panel-title="Viewer"
+          >
             <div class="viewer-header">
               <div>
                 <p class="eyebrow">Viewer</p>
@@ -364,7 +376,12 @@
             </div>
           </section>
 
-          <section class="dock-panel result-panel">
+          <section
+            id="panelOutput"
+            class="dock-panel result-panel layout-panel-template"
+            data-layout-panel="output"
+            data-panel-title="Output"
+          >
             <div class="dock-header result-panel-header">
               <div>
                 <p class="eyebrow">Run Feedback</p>
@@ -406,10 +423,13 @@
               </article>
             </section>
           </section>
-        </section>
 
-        <aside class="right-dock">
-          <section class="dock-panel control-panel">
+          <section
+            id="panelParameters"
+            class="dock-panel control-panel layout-panel-template"
+            data-layout-panel="parameters"
+            data-panel-title="Parameters"
+          >
             <div class="dock-header">
               <div>
                 <p class="eyebrow">Controls</p>
@@ -439,10 +459,11 @@
             <div id="workbenchSections" class="control-sections"></div>
             <div id="workbenchSummary" class="workbench-summary"></div>
           </section>
-        </aside>
+        </div>
       </main>
     </div>
 
+    <script type="module" src="/static/layout.js"></script>
     <script src="/static/app.js" defer></script>
   </body>
 </html>
