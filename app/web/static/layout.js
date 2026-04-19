@@ -23,25 +23,25 @@ function defaultLayoutConfig() {
         {
           type: "component",
           title: "Workflow",
-          size: 27,
+          size: "27%",
           componentType: "workspace-panel",
           componentState: { panelId: "workflow" },
         },
         {
           type: "column",
-          size: 48,
+          size: "48%",
           content: [
             {
               type: "component",
               title: "Viewer",
-              size: 64,
+              size: "64%",
               componentType: "workspace-panel",
               componentState: { panelId: "viewer" },
             },
             {
               type: "component",
               title: "Output",
-              size: 36,
+              size: "36%",
               componentType: "workspace-panel",
               componentState: { panelId: "output" },
             },
@@ -50,7 +50,7 @@ function defaultLayoutConfig() {
         {
           type: "component",
           title: "Parameters",
-          size: 25,
+          size: "25%",
           componentType: "workspace-panel",
           componentState: { panelId: "parameters" },
         },

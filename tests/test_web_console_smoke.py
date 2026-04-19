@@ -3,7 +3,10 @@ from __future__ import annotations
 import base64
 import contextlib
 import json
+import os
 import re
+import shutil
+import subprocess
 import threading
 import unittest
 import urllib.request
@@ -13,7 +16,9 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 from urllib.error import HTTPError
 
-from app.services import browser_workflow, web_processing, web_workbench
+from PIL import Image
+
+from app.services import browser_workflow, storage, web_processing, web_workbench
 from app.web.server import VisoMasterWebHandler
 
 
@@ -161,6 +166,8 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn("function setLayoutReady(isReady)", source)
         self.assertIn("reportLayoutFailure", source)
         self.assertIn("window.localStorage.removeItem(LAYOUT_STORAGE_KEY)", source)
+        self.assertIn('size: "27%"', source)
+        self.assertIn('size: "48%"', source)
 
     def test_german_translation_uses_window_title_helper(self) -> None:
         source = (ROOT / "app" / "ui" / "translations" / "de.py").read_text(encoding="utf-8")
@@ -406,3 +413,527 @@ class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
             self.assertEqual(400, context.exception.code)
             payload = json.loads(context.exception.read().decode("utf-8"))
             self.assertEqual("Fehlende Python-Pakete: numpy, Pillow", payload["error"])
+
+
+class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
+    def test_primary_buttons_and_tabs_are_clickable_in_browser(self) -> None:
+        if shutil.which("node") is None:
+            self.skipTest("node is required for the Playwright audit")
+        if shutil.which("ffmpeg") is None:
+            self.skipTest("ffmpeg is required to generate the sample video")
+
+        probe = subprocess.run(
+            ["node", "-e", "require('playwright'); console.log('ok')"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if probe.returncode != 0:
+            self.skipTest("playwright is not available in node")
+
+        source_image = self.temp_path / "source.png"
+        Image.new("RGB", (64, 64), (255, 0, 0)).save(source_image)
+
+        target_video = self.temp_path / "target.mp4"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=blue:s=320x240:d=1",
+                "-pix_fmt",
+                "yuv420p",
+                str(target_video),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=True,
+        )
+
+        sample = {
+            "jobs": {"demo-job": {"steps": ["swap"]}},
+            "job-exports": {"demo-export": {"steps": ["export"]}},
+            "presets": {"demo-preset": {"parameters": {}, "control": {}}},
+            "embeddings": {
+                "demo-embedding": [
+                    {
+                        "name": "Demo",
+                        "embedding_store": {"Inswapper128ArcFace": [0.1, 0.2]},
+                    }
+                ]
+            },
+            "workspace": {"target_faces_data": [1], "input_faces_data": [1], "markers": [1]},
+        }
+        processing_status = {
+            "status": "idle",
+            "message": "Noch keine Browser-Verarbeitung gestartet.",
+            "updatedAt": "2026-04-19T00:00:00+00:00",
+            "logTail": [],
+            "active": False,
+            "outputExists": False,
+        }
+
+        def list_items(kind: str) -> list[dict[str, object]]:
+            items = []
+            for name, payload in sample[kind].items():
+                items.append(
+                    {
+                        "name": name,
+                        "modifiedAt": "2026-04-19T00:00:00+00:00",
+                        "entryCount": len(payload) if isinstance(payload, dict) else 1,
+                        "modelCount": 1,
+                        "dimensions": [2],
+                    }
+                )
+            return items
+
+        def current_status() -> dict[str, object]:
+            return dict(processing_status)
+
+        def start_job(job_name: str) -> dict[str, object]:
+            processing_status.update(
+                {
+                    "status": "running",
+                    "message": f"Job {job_name} started",
+                    "jobName": job_name,
+                    "active": True,
+                    "logTail": ["job start"],
+                }
+            )
+            return dict(processing_status)
+
+        def stop_job() -> dict[str, object]:
+            processing_status.update(
+                {
+                    "status": "stopped",
+                    "message": "stopped",
+                    "active": False,
+                    "logTail": ["job stop"],
+                }
+            )
+            return dict(processing_status)
+
+        def start_upload_run(
+            detection_frame: int = 0,
+            workbench_state: dict[str, object] | None = None,
+        ) -> dict[str, object]:
+            output = self.temp_path / "outputs" / "result.png"
+            Image.new("RGB", (64, 64), (0, 180, 120)).save(output)
+            processing_status.update(
+                {
+                    "status": "succeeded",
+                    "message": "Browser-Direktlauf erfolgreich.",
+                    "active": False,
+                    "outputPath": str(output),
+                    "outputExists": True,
+                    "outputDownloadUrl": "/api/processing/output",
+                    "finishedAt": "2026-04-19T00:00:02+00:00",
+                    "logTail": ["upload ok"],
+                }
+            )
+            return dict(processing_status)
+
+        def generate_upload_preview(
+            detection_frame: int = 0,
+            workbench_state: dict[str, object] | None = None,
+        ) -> dict[str, object]:
+            preview_path = browser_workflow.swap_preview_output_path()
+            Image.new("RGB", (64, 64), (220, 100, 120)).save(preview_path)
+            browser_workflow.register_swap_preview(
+                preview_path,
+                frame_index=detection_frame,
+                source_count=len(browser_workflow.current_state()["sourceFaces"]),
+            )
+            return {"message": "preview ok", "state": browser_workflow.current_state()}
+
+        def generate_found_faces(
+            detection_frame: int = 0,
+            workbench_state: dict[str, object] | None = None,
+        ) -> dict[str, object]:
+            face_path = browser_workflow.found_faces_dir() / "target_face_01.png"
+            Image.new("RGB", (64, 64), (100, 140, 240)).save(face_path)
+            browser_workflow.register_detected_faces(
+                {
+                    "frameIndex": detection_frame,
+                    "targetName": browser_workflow.current_state()["targetMedia"]["name"],
+                    "faces": [
+                        {
+                            "assetName": "faces/target_face_01.png",
+                            "label": "Target Face 1",
+                            "faceId": "1",
+                            "frameIndex": detection_frame,
+                        }
+                    ],
+                }
+            )
+            return {
+                "message": "1 Zielgesicht(er) gefunden.",
+                "state": browser_workflow.current_state(),
+            }
+
+        def fake_generate_target_preview(frame_index: int = 0) -> dict[str, object]:
+            target = browser_workflow.target_media_path()
+            asset_path = browser_workflow.PREVIEW_DIR / "target_frame.jpg"
+            browser_workflow.clear_detected_faces()
+            Image.new("RGB", (64, 64), (123, 50, 200)).save(asset_path)
+            browser_workflow._write_json(  # noqa: SLF001
+                browser_workflow.TARGET_PREVIEW_META_PATH,
+                {
+                    "assetName": asset_path.name,
+                    "frameIndex": int(frame_index),
+                    "fileType": "video" if target.suffix.lower() == ".mp4" else "image",
+                    "targetName": target.name,
+                    "updatedAt": "2026-04-19T00:00:01+00:00",
+                },
+            )
+            return browser_workflow._preview_state()  # noqa: SLF001
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(storage, "list_jobs", lambda: list_items("jobs")))
+            stack.enter_context(
+                mock.patch.object(storage, "list_job_exports", lambda: list_items("job-exports"))
+            )
+            stack.enter_context(mock.patch.object(storage, "list_presets", lambda: list_items("presets")))
+            stack.enter_context(
+                mock.patch.object(storage, "list_embeddings", lambda: list_items("embeddings"))
+            )
+            stack.enter_context(
+                mock.patch.object(storage, "read_job", lambda name: sample["jobs"][name])
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage, "read_job_export", lambda name: sample["job-exports"][name]
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(storage, "read_preset", lambda name: sample["presets"][name])
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage, "read_embedding", lambda name: sample["embeddings"][name]
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "write_job",
+                    lambda name, payload: sample["jobs"].__setitem__(name, payload)
+                    or self.temp_path / f"jobs-{name}.json",
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "write_job_export",
+                    lambda name, payload: sample["job-exports"].__setitem__(name, payload)
+                    or self.temp_path / f"exports-{name}.json",
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "write_preset",
+                    lambda name, parameters, control: sample["presets"].__setitem__(
+                        name, {"parameters": parameters, "control": control}
+                    )
+                    or {
+                        "preset": self.temp_path / f"presets-{name}.json",
+                        "control": self.temp_path / f"presets-{name}-ctl.json",
+                    },
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "write_embedding",
+                    lambda name, payload: sample["embeddings"].__setitem__(name, payload)
+                    or self.temp_path / f"embeddings-{name}.json",
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage, "delete_job", lambda name: sample["jobs"].pop(name, None)
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "delete_job_export",
+                    lambda name: sample["job-exports"].pop(name, None),
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage, "delete_preset", lambda name: sample["presets"].pop(name, None)
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "delete_embedding",
+                    lambda name: sample["embeddings"].pop(name, None),
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "summarize_workspace",
+                    lambda: {
+                        "exists": True,
+                        "targetFaceCount": 1,
+                        "inputFaceCount": 1,
+                        "markerCount": 1,
+                        "modifiedAt": "2026-04-19T00:00:00+00:00",
+                    },
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(storage, "read_last_workspace", lambda: sample["workspace"])
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    storage,
+                    "write_last_workspace",
+                    lambda payload: sample.__setitem__("workspace", payload)
+                    or self.temp_path / "last_workspace.json",
+                )
+            )
+
+            stack.enter_context(mock.patch.object(web_processing, "current_status", current_status))
+            stack.enter_context(mock.patch.object(web_processing, "start_job", start_job))
+            stack.enter_context(mock.patch.object(web_processing, "stop_job", stop_job))
+            stack.enter_context(mock.patch.object(web_processing, "start_upload_run", start_upload_run))
+            stack.enter_context(
+                mock.patch.object(web_processing, "generate_upload_preview", generate_upload_preview)
+            )
+            stack.enter_context(
+                mock.patch.object(web_processing, "generate_found_faces", generate_found_faces)
+            )
+
+            stack.enter_context(
+                mock.patch.object(
+                    browser_workflow,
+                    "_media_metadata",
+                    lambda path: {
+                        "width": 320,
+                        "height": 240,
+                        "fps": 25.0,
+                        "frameCount": 100,
+                        "frameMax": 99,
+                        "durationSeconds": 4.0,
+                    }
+                    if path.suffix.lower() == ".mp4"
+                    else {"width": 64, "height": 64},
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    browser_workflow, "generate_target_preview", fake_generate_target_preview
+                )
+            )
+
+            with self.start_server() as server:
+                script = r"""
+const { chromium } = require('playwright');
+
+(async () => {
+  const pageErrors = [];
+  const actionErrors = [];
+  const clicked = [];
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      pageErrors.push(msg.text());
+    }
+  });
+
+  async function click(selector, label) {
+    try {
+      await page.click(selector);
+      clicked.push(label);
+      await page.waitForTimeout(150);
+    } catch (error) {
+      actionErrors.push(`${label}: ${error.message}`);
+    }
+  }
+
+  async function requireEnabled(selector, label) {
+    const disabled = await page.locator(selector).isDisabled();
+    if (disabled) {
+      actionErrors.push(`${label}: button is disabled`);
+    }
+  }
+
+  async function waitEnabled(selector, label) {
+    try {
+      await page.waitForFunction(
+        (sel) => {
+          const element = document.querySelector(sel);
+          return Boolean(element) && !element.disabled;
+        },
+        selector,
+        { timeout: 5000 }
+      );
+    } catch (error) {
+      actionErrors.push(`${label}: ${error.message}`);
+    }
+  }
+
+  try {
+    await page.goto(process.env.TEST_BASE_URL, { waitUntil: 'networkidle' });
+    const initialFlash = await page.locator('#globalFlash').textContent();
+    if (initialFlash && initialFlash.trim()) {
+      actionErrors.push(`initial flash: ${initialFlash.trim()}`);
+    }
+
+    await click('#refreshAllButton', 'refreshAllButton');
+
+    await click('[data-left-dock-tab="library"]', 'leftDock-library');
+    await click('[data-refresh="jobs"]', 'refresh-jobs');
+    await click('[data-refresh="presets"]', 'refresh-presets');
+    await click('[data-refresh="embeddings"]', 'refresh-embeddings');
+    await click('[data-refresh="job-exports"]', 'refresh-job-exports');
+    await click('#loadWorkspaceButton', 'loadWorkspaceButton');
+
+    await click('[data-left-dock-tab="tools"]', 'leftDock-tools');
+    await click('[data-utility-tab="status"]', 'utility-status');
+    await click('[data-utility-tab="editor"]', 'utility-editor');
+    await click('[data-utility-tab="builder"]', 'utility-builder');
+    await page.fill('#builderFileName', 'pw-embed');
+    await page.fill('#builderEmbeddingName', 'PW Embed');
+    await page.fill('#builderModelName', 'Inswapper128ArcFace');
+    await page.fill('#builderVectorInput', '0.1, 0.2, 0.3');
+    await click('#builderAddModelButton', 'builderAddModelButton');
+    await click('#builderSaveButton', 'builderSaveButton');
+    await click('#builderResetButton', 'builderResetButton');
+
+    await click('[data-left-dock-tab="library"]', 'leftDock-library-2');
+    await click('#presetsList .item-button', 'select-preset');
+    await page.fill('#nameInput', 'demo-preset-2');
+    await page.fill('#jsonEditor', '{"parameters":{},"control":{}}');
+    await click('#saveButton', 'saveButton');
+    await click('[data-left-dock-tab="library"]', 'leftDock-library-export');
+    await click('#jobExportsList .item-button', 'select-export');
+    await click('#deleteButton', 'deleteButton');
+
+    await click('[data-left-dock-tab="media"]', 'leftDock-media');
+    await page.setInputFiles('#targetUploadInput', process.env.TEST_TARGET_VIDEO);
+    await click('#uploadTargetButton', 'uploadTargetButton');
+    await page.setInputFiles('#sourceUploadInput', [process.env.TEST_SOURCE_IMAGE]);
+    await click('#uploadSourcesButton', 'uploadSourcesButton');
+
+    await requireEnabled('#transportPreviewButton', 'transportPreviewButton');
+    await click('#transportPreviewButton', 'transportPreviewButton');
+    await click('#transportPrevFrameButton', 'transportPrevFrameButton');
+    await click('#transportNextFrameButton', 'transportNextFrameButton');
+    await click('#transportPlayButton', 'transportPlayButton-play');
+    await page.waitForTimeout(200);
+    await click('#transportPlayButton', 'transportPlayButton-pause');
+    await click('#transportPreviewButton', 'transportPreviewButton-refresh');
+
+    await requireEnabled('#quickFindTargetFacesButton', 'quickFindTargetFacesButton');
+    await click('#quickFindTargetFacesButton', 'quickFindTargetFacesButton');
+    await waitEnabled('#clearTargetFacesButton', 'clearTargetFacesButton-ready');
+    await click('#clearTargetFacesButton', 'clearTargetFacesButton');
+    await click('#findTargetFacesButton', 'findTargetFacesButton');
+    await waitEnabled('#quickSwapPreviewButton', 'quickSwapPreviewButton-ready');
+
+    await requireEnabled('#quickSwapPreviewButton', 'quickSwapPreviewButton');
+    await click('#quickSwapPreviewButton', 'quickSwapPreviewButton');
+    await waitEnabled('#quickRunWorkflowButton', 'quickRunWorkflowButton-ready');
+    await requireEnabled('#quickRunWorkflowButton', 'quickRunWorkflowButton');
+    await click('#quickRunWorkflowButton', 'quickRunWorkflowButton');
+    await waitEnabled('#workflowRunButton', 'workflowRunButton-ready');
+    await click('#workflowRunButton', 'workflowRunButton');
+
+    await click('[data-center-pane-tab="log"]', 'centerPane-log');
+    await click('[data-center-pane-tab="notes"]', 'centerPane-notes');
+    await click('[data-center-pane-tab="output"]', 'centerPane-output');
+    await click('#processingRefreshButton', 'processingRefreshButton');
+
+    await click('[data-left-dock-tab="library"]', 'leftDock-library-3');
+    await click('#jobsList .item-button', 'select-job');
+    await requireEnabled('#processingStartButton', 'processingStartButton');
+    await click('#processingStartButton', 'processingStartButton');
+    await requireEnabled('#processingStopButton', 'processingStopButton');
+    await click('#processingStopButton', 'processingStopButton');
+
+    await click('[data-left-dock-tab="media"]', 'leftDock-media-2');
+    await click('#workflowResetButton', 'workflowResetButton');
+
+    await click('[data-workbench-tab="swap"]', 'workbench-swap');
+    await click('[data-workbench-tab="restoration"]', 'workbench-restoration');
+    await click('[data-workbench-tab="detect"]', 'workbench-detect');
+    await click('[data-workbench-tab="output"]', 'workbench-output');
+    await click('#saveWorkbenchButton', 'saveWorkbenchButton');
+    await click('#resetWorkbenchButton', 'resetWorkbenchButton');
+
+    const finalFlash = await page.locator('#globalFlash').textContent();
+    console.log(JSON.stringify({ clicked, pageErrors, actionErrors, finalFlash }, null, 2));
+  } finally {
+    await browser.close();
+  }
+})();
+"""
+
+                result = subprocess.run(
+                    ["node", "-e", script],
+                    cwd=ROOT,
+                    env={
+                        **os.environ,
+                        "TEST_BASE_URL": f"http://127.0.0.1:{server.server_address[1]}/",
+                        "TEST_TARGET_VIDEO": str(target_video),
+                        "TEST_SOURCE_IMAGE": str(source_image),
+                    },
+                    capture_output=True,
+                    text=True,
+                    timeout=90,
+                    check=False,
+                )
+
+        self.assertEqual(
+            0,
+            result.returncode,
+            msg=f"Playwright audit failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+        )
+        payload = json.loads(result.stdout.strip())
+        self.assertFalse(payload["pageErrors"], payload)
+        self.assertFalse(payload["actionErrors"], payload)
+        expected_clicks = {
+            "refreshAllButton",
+            "uploadTargetButton",
+            "uploadSourcesButton",
+            "findTargetFacesButton",
+            "clearTargetFacesButton",
+            "loadWorkspaceButton",
+            "saveButton",
+            "deleteButton",
+            "builderResetButton",
+            "builderSaveButton",
+            "builderAddModelButton",
+            "transportPrevFrameButton",
+            "transportPlayButton-play",
+            "transportPlayButton-pause",
+            "transportNextFrameButton",
+            "transportPreviewButton",
+            "quickFindTargetFacesButton",
+            "quickSwapPreviewButton",
+            "quickRunWorkflowButton",
+            "workflowRunButton",
+            "processingStartButton",
+            "processingStopButton",
+            "processingRefreshButton",
+            "workflowResetButton",
+            "resetWorkbenchButton",
+            "saveWorkbenchButton",
+        }
+        self.assertTrue(expected_clicks.issubset(set(payload["clicked"])), payload)
