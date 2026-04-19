@@ -133,6 +133,8 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn('id="layoutRoot"', html)
         self.assertIn('/static/layout.js', html)
         self.assertIn('/static/vendor/golden-layout/css/goldenlayout-base.css', html)
+        self.assertIn('id="panelTemplates"', html)
+        self.assertNotIn('id="panelTemplates" hidden', html)
         self.assertTrue((ROOT / "app" / "web" / "static" / "layout.js").is_file())
         self.assertTrue(
             (ROOT / "app" / "web" / "static" / "vendor" / "golden-layout" / "esm" / "index.js").is_file()
@@ -152,6 +154,12 @@ class TestWebConsoleStaticContract(unittest.TestCase):
                 offenders.append(f"{path}: {target}")
 
         self.assertFalse(offenders, f"Extensionless vendor imports found: {offenders[:10]}")
+
+    def test_layout_script_supports_visible_fallback(self) -> None:
+        source = (ROOT / "app" / "web" / "static" / "layout.js").read_text(encoding="utf-8")
+        self.assertIn("function setLayoutReady(isReady)", source)
+        self.assertIn("reportLayoutFailure", source)
+        self.assertIn("window.localStorage.removeItem(LAYOUT_STORAGE_KEY)", source)
 
     def test_german_translation_uses_window_title_helper(self) -> None:
         source = (ROOT / "app" / "ui" / "translations" / "de.py").read_text(encoding="utf-8")

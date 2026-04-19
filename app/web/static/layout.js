@@ -83,6 +83,22 @@ function saveLayout(layout) {
   }
 }
 
+function setLayoutReady(isReady) {
+  document.documentElement.classList.toggle("layout-ready", isReady);
+}
+
+function reportLayoutFailure(message) {
+  const flash = document.getElementById("globalFlash");
+  if (!(flash instanceof HTMLElement)) {
+    return;
+  }
+  flash.hidden = false;
+  flash.className = "global-flash error";
+  flash.textContent =
+    message ||
+    "Die andockbare Workbench konnte nicht initialisiert werden. Die einfache Fallback-Ansicht bleibt aktiv.";
+}
+
 function createFallbackPanel(panelId) {
   const fallback = document.createElement("section");
   fallback.className = "dock-panel layout-panel-template";
@@ -125,7 +141,16 @@ function mountPanels(layoutRoot, panelTemplates) {
     return { panelId };
   });
 
-  layout.loadLayout(loadSavedLayout());
+  try {
+    layout.loadLayout(loadSavedLayout());
+  } catch (error) {
+    try {
+      window.localStorage.removeItem(LAYOUT_STORAGE_KEY);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+    layout.loadLayout(defaultLayoutConfig());
+  }
   layout.on("stateChanged", () => saveLayout(layout));
 
   const syncSize = () => {
@@ -150,6 +175,8 @@ function mountPanels(layoutRoot, panelTemplates) {
       syncSize();
     },
   };
+
+  setLayoutReady(true);
 }
 
 window.addEventListener(
@@ -160,7 +187,17 @@ window.addEventListener(
     if (!(layoutRoot instanceof HTMLElement) || !(panelTemplates instanceof HTMLElement)) {
       return;
     }
-    mountPanels(layoutRoot, panelTemplates);
+    try {
+      mountPanels(layoutRoot, panelTemplates);
+    } catch (error) {
+      setLayoutReady(false);
+      reportLayoutFailure(
+        error instanceof Error
+          ? error.message
+          : "Die Workbench konnte nicht initialisiert werden."
+      );
+      console.error("VisoMaster layout bootstrap failed", error);
+    }
   },
   { once: true }
 );
