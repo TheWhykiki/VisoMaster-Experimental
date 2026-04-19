@@ -8,7 +8,10 @@ def _set_text(widget, text: str) -> None:
 
 
 def _set_title(widget, title: str) -> None:
-    widget.setTitle(title)
+    if hasattr(widget, "setTitle"):
+        widget.setTitle(title)
+    else:
+        widget.setWindowTitle(title)
 
 
 def _set_window_title(widget, title: str) -> None:

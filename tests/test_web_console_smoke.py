@@ -158,6 +158,8 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn("def _set_window_title(widget, title: str) -> None:", source)
         self.assertIn('(window, _set_window_title, "VisoMaster v0.1.6 - Fusion")', source)
         self.assertNotIn("(window, window.setWindowTitle,", source)
+        self.assertIn('if hasattr(widget, "setTitle"):', source)
+        self.assertIn("widget.setWindowTitle(title)", source)
 
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
