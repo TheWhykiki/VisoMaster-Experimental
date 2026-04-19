@@ -116,6 +116,7 @@ class TestWebConsoleStaticContract(unittest.TestCase):
             "Swap Parameters",
             "Swap Faces",
             "Preview Frame",
+            "Swap Preview",
         ):
             self.assertIn(label, html)
 
@@ -155,6 +156,24 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
         state = browser_workflow.current_state()
         self.assertEqual(0, state["previewFrame"]["frameIndex"])
         self.assertIn("/api/browser-workflow/preview/frame", state["previewFrame"]["url"])
+
+    def test_swap_preview_can_be_registered_in_isolated_state(self) -> None:
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+        browser_workflow.save_source_uploads([("source-a.jpg", PNG_BYTES)])
+        preview_path = browser_workflow.swap_preview_output_path()
+        preview_path.write_bytes(PNG_BYTES)
+
+        preview = browser_workflow.register_swap_preview(
+            preview_path,
+            frame_index=4,
+            source_count=1,
+        )
+        self.assertEqual(4, preview["frameIndex"])
+        self.assertEqual(1, preview["sourceCount"])
+        self.assertIn("/api/browser-workflow/preview/swap", preview["url"])
+
+        state = browser_workflow.current_state()
+        self.assertEqual(4, state["swapPreview"]["frameIndex"])
 
 
 class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):

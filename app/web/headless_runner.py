@@ -11,6 +11,8 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+import numpy
+from PIL import Image
 
 if (
     platform.system() != "Windows"
@@ -323,6 +325,19 @@ class Runner:
         newest = max(candidates, key=lambda path: path.stat().st_mtime)
         return str(newest)
 
+    def _save_preview_frame(self, output_path: str | Path) -> str:
+        if not self.main_window:
+            raise RuntimeError("MainWindow ist nicht initialisiert.")
+        frame = self.main_window.video_processor.current_frame.copy()
+        if not isinstance(frame, numpy.ndarray):
+            raise RuntimeError("Es steht kein berechneter Vorschau-Frame zur Verfuegung.")
+
+        target_path = Path(output_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        preview_frame = frame[..., ::-1]
+        Image.fromarray(preview_frame).save(target_path, "PNG")
+        return str(target_path)
+
     def _progress_payload(self) -> dict[str, Any]:
         if not self.main_window:
             return {}
@@ -401,6 +416,28 @@ class Runner:
             self.fail("Das Headless-Fenster konnte nicht initialisiert werden.")
             return
 
+        if self.mode == "preview":
+            self._write_status(
+                status="loading",
+                message="Geswappte Vorschau wird in der Desktop-Pipeline berechnet.",
+            )
+            try:
+                self._prepare_direct_upload()
+                preview_output_path = str(
+                    self.request_payload.get("previewOutputPath", "")
+                ).strip()
+                if not preview_output_path:
+                    raise RuntimeError("Der Preview-Ausgabepfad fehlt.")
+                saved_path = self._save_preview_frame(preview_output_path)
+            except Exception as exc:
+                self.fail(str(exc))
+                return
+            self.finish_success(
+                message="Geswappte Vorschau wurde erfolgreich erzeugt.",
+                output_path=saved_path,
+            )
+            return
+
         if self.mode == "upload":
             self._write_status(
                 status="loading",
@@ -471,16 +508,20 @@ class Runner:
         self.main_window.buttonMediaRecord.toggle()
         QtCore.QTimer.singleShot(800, self._validate_launch)
 
-    def finish_success(self, message: str | None = None) -> None:
+    def finish_success(
+        self,
+        message: str | None = None,
+        output_path: str | None = None,
+    ) -> None:
         if self.finished:
             return
         self.finished = True
-        output_path = self._discover_output_path()
+        resolved_output_path = output_path or self._discover_output_path()
         self._write_status(
             status="succeeded",
             message=message or f'Job "{self.job_name}" wurde erfolgreich verarbeitet.',
             progress=self._progress_payload(),
-            outputPath=output_path,
+            outputPath=resolved_output_path,
             finishedAt=_iso_now(),
         )
         print(f"[runner] Job {self.job_name} finished successfully.")

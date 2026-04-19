@@ -16,7 +16,8 @@ TARGET_DIR = ensure_project_dir(".web", "workflow", "target")
 SOURCE_DIR = ensure_project_dir(".web", "workflow", "sources")
 PREVIEW_DIR = ensure_project_dir(".web", "workflow", "preview")
 OUTPUT_DIR = ensure_project_dir(".web", "outputs")
-PREVIEW_META_PATH = PREVIEW_DIR / "target_frame.json"
+TARGET_PREVIEW_META_PATH = PREVIEW_DIR / "target_frame.json"
+SWAP_PREVIEW_META_PATH = PREVIEW_DIR / "swap_preview.json"
 _CV2 = None
 _CV2_LOADED = False
 
@@ -164,16 +165,41 @@ def _media_metadata(path: Path) -> dict[str, Any]:
 
 
 def _preview_state() -> dict[str, Any] | None:
-    payload = _read_json(PREVIEW_META_PATH)
+    return _preview_state_from(
+        meta_path=TARGET_PREVIEW_META_PATH,
+        route="/api/browser-workflow/preview/frame",
+    )
+
+
+def _swap_preview_state() -> dict[str, Any] | None:
+    return _preview_state_from(
+        meta_path=SWAP_PREVIEW_META_PATH,
+        route="/api/browser-workflow/preview/swap",
+    )
+
+
+def _preview_state_from(meta_path: Path, route: str) -> dict[str, Any] | None:
+    payload = _read_json(meta_path)
     asset_name = str(payload.get("assetName", "")).strip()
     if not asset_name:
         return None
     asset_path = PREVIEW_DIR / asset_name
     if not asset_path.is_file():
         return None
-    payload["url"] = f"/api/browser-workflow/preview/frame?ts={int(asset_path.stat().st_mtime)}"
+    payload["url"] = f"{route}?ts={int(asset_path.stat().st_mtime)}"
     payload["path"] = str(asset_path)
     return payload
+
+
+def _clear_preview_asset(meta_path: Path) -> None:
+    payload = _read_json(meta_path)
+    asset_name = str(payload.get("assetName", "")).strip()
+    if asset_name:
+        asset_path = PREVIEW_DIR / asset_name
+        if asset_path.is_file():
+            asset_path.unlink()
+    if meta_path.is_file():
+        meta_path.unlink()
 
 
 def _entry(path: Path) -> dict[str, Any]:
@@ -212,6 +238,40 @@ def preview_image_path() -> Path:
     if not preview:
         raise FileNotFoundError("Es liegt noch keine Ziel-Frame-Vorschau vor.")
     return Path(preview["path"])
+
+
+def swap_preview_image_path() -> Path:
+    preview = _swap_preview_state()
+    if not preview:
+        raise FileNotFoundError("Es liegt noch keine geswappte Vorschau vor.")
+    return Path(preview["path"])
+
+
+def swap_preview_output_path() -> Path:
+    PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    return PREVIEW_DIR / "swap_preview.png"
+
+
+def clear_swap_preview() -> None:
+    _clear_preview_asset(SWAP_PREVIEW_META_PATH)
+
+
+def register_swap_preview(asset_path: Path, frame_index: int, *, source_count: int) -> dict[str, Any]:
+    if not asset_path.is_file():
+        raise FileNotFoundError("Die geswappte Vorschau-Datei wurde nicht gefunden.")
+    metadata = {
+        "assetName": asset_path.name,
+        "frameIndex": int(max(0, frame_index)),
+        "fileType": _file_type(asset_path),
+        "targetName": target_media_path().name,
+        "sourceCount": int(max(0, source_count)),
+        "updatedAt": _iso_now(),
+    }
+    _write_json(SWAP_PREVIEW_META_PATH, metadata)
+    preview = _swap_preview_state()
+    if preview is None:
+        raise ValueError("Die geswappte Vorschau konnte nicht registriert werden.")
+    return preview
 
 
 def _extract_video_frame(path: Path, frame_index: int) -> tuple[Any, int]:
@@ -258,9 +318,7 @@ def generate_target_preview(frame_index: int = 0) -> dict[str, Any]:
         raise ValueError("Nur Bilder und Videos koennen als Zielmedium verwendet werden.")
 
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-    for child in PREVIEW_DIR.iterdir():
-        if child.name != PREVIEW_META_PATH.name:
-            child.unlink()
+    _clear_preview_asset(TARGET_PREVIEW_META_PATH)
     if file_type == "video":
         if not cv2.imwrite(str(preview_asset_path), frame):
             raise ValueError("Die Frame-Vorschau konnte nicht gespeichert werden.")
@@ -274,7 +332,7 @@ def generate_target_preview(frame_index: int = 0) -> dict[str, Any]:
         "targetName": target.name,
         "updatedAt": _iso_now(),
     }
-    _write_json(PREVIEW_META_PATH, metadata)
+    _write_json(TARGET_PREVIEW_META_PATH, metadata)
     preview = _preview_state()
     if preview is None:
         raise ValueError("Die Frame-Vorschau konnte nicht gelesen werden.")
@@ -300,6 +358,7 @@ def current_state() -> dict[str, Any]:
         "updatedAt": _iso_now(),
         "assignStrategy": "first_source_to_all_targets",
         "previewFrame": _preview_state(),
+        "swapPreview": _swap_preview_state(),
         "workbench": workbench_state,
     }
 
@@ -327,6 +386,7 @@ def save_source_uploads(files: list[tuple[str, bytes]]) -> dict[str, Any]:
         raise ValueError("Es wurden keine Quellbilder hochgeladen.")
 
     _clear_dir(SOURCE_DIR)
+    clear_swap_preview()
     saved_items: list[dict[str, Any]] = []
     for filename, content in files:
         if not content:

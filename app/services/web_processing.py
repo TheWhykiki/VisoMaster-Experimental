@@ -17,7 +17,9 @@ from app.services import browser_workflow, storage
 
 PROCESSING_DIR = ensure_project_dir(".web", "processing")
 STATUS_FILE = PROCESSING_DIR / "status.json"
+PREVIEW_STATUS_FILE = PROCESSING_DIR / "preview_status.json"
 LOG_FILE = PROCESSING_DIR / "runner.log"
+PREVIEW_LOG_FILE = PROCESSING_DIR / "preview_runner.log"
 LOG_TAIL_LINE_COUNT = 40
 
 _LOCK = threading.RLock()
@@ -133,7 +135,7 @@ def _build_start_command(job_name: str) -> list[str]:
     ]
 
 
-def _build_request_command(request_file: Path) -> list[str]:
+def _build_request_command(request_file: Path, status_file: Path) -> list[str]:
     return [
         sys.executable,
         "-m",
@@ -141,7 +143,7 @@ def _build_request_command(request_file: Path) -> list[str]:
         "--request-file",
         str(request_file),
         "--status-file",
-        str(STATUS_FILE),
+        str(status_file),
     ]
 
 
@@ -229,7 +231,7 @@ def start_upload_run(
 
         with LOG_FILE.open("w", encoding="utf-8") as log_handle:
             process = subprocess.Popen(
-                _build_request_command(request_file),
+                _build_request_command(request_file, STATUS_FILE),
                 cwd=project_root_path(),
                 stdout=log_handle,
                 stderr=subprocess.STDOUT,
@@ -243,6 +245,79 @@ def start_upload_run(
         initial_status["message"] = "Browser-Direktlauf wurde gestartet."
         _persist_status(initial_status)
         return _normalize_status(initial_status)
+
+
+def generate_upload_preview(
+    detection_frame: int = 0,
+    workbench_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_payload = browser_workflow.build_run_request(
+        detection_frame=detection_frame,
+        workbench_state=workbench_state,
+    )
+    request_payload["mode"] = "preview"
+    request_payload["label"] = "Browser-Swap-Vorschau"
+    preview_output_path = browser_workflow.swap_preview_output_path()
+    request_payload["previewOutputPath"] = str(preview_output_path)
+
+    with _LOCK:
+        active = _active_process()
+        if active is not None and active.poll() is None:
+            raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+
+        PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
+        browser_workflow.clear_swap_preview()
+
+        request_file = PROCESSING_DIR / "current_preview_request.json"
+        _write_json_file(request_file, request_payload)
+
+        preview_status = {
+            "status": "starting",
+            "mode": "preview",
+            "message": "Geswappte Vorschau wird erzeugt.",
+            "startedAt": _iso_now(),
+            "targetMediaPath": request_payload["targetMediaPath"],
+            "inputFaceCount": len(request_payload["inputFacePaths"]),
+            "statusFile": str(PREVIEW_STATUS_FILE),
+            "requestFile": str(request_file),
+        }
+        _write_json_file(PREVIEW_STATUS_FILE, preview_status)
+        if PREVIEW_LOG_FILE.exists():
+            PREVIEW_LOG_FILE.unlink()
+
+        with PREVIEW_LOG_FILE.open("w", encoding="utf-8") as log_handle:
+            process = subprocess.run(
+                _build_request_command(request_file, PREVIEW_STATUS_FILE),
+                cwd=project_root_path(),
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=_prepare_environment(),
+            )
+
+        final_status = _read_json_file(PREVIEW_STATUS_FILE)
+        if process.returncode != 0:
+            message = final_status.get(
+                "message",
+                "Die geswappte Vorschau konnte nicht erzeugt werden.",
+            )
+            raise ValueError(message)
+        if final_status.get("status") != "succeeded":
+            message = final_status.get(
+                "message",
+                "Die geswappte Vorschau wurde nicht erfolgreich abgeschlossen.",
+            )
+            raise ValueError(message)
+
+        browser_workflow.register_swap_preview(
+            preview_output_path,
+            frame_index=int(request_payload.get("detectionFrame", 0)),
+            source_count=len(request_payload["inputFacePaths"]),
+        )
+        return {
+            "message": "Geswappte Vorschau wurde erzeugt.",
+            "state": browser_workflow.current_state(),
+        }
 
 
 def stop_job() -> dict[str, Any]:

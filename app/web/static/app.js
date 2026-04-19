@@ -75,6 +75,7 @@ const transportPrevFrameButton = document.getElementById("transportPrevFrameButt
 const transportPlayButton = document.getElementById("transportPlayButton");
 const transportNextFrameButton = document.getElementById("transportNextFrameButton");
 const transportPreviewButton = document.getElementById("transportPreviewButton");
+const transportSwapPreviewButton = document.getElementById("transportSwapPreviewButton");
 const transportFrameSlider = document.getElementById("transportFrameSlider");
 const transportFrameInput = document.getElementById("transportFrameInput");
 const transportMeta = document.getElementById("transportMeta");
@@ -459,6 +460,7 @@ function syncTransportControls() {
   transportFrameSlider.disabled = disabled;
   transportFrameInput.disabled = disabled;
   transportPreviewButton.disabled = !state.browserWorkflow?.targetMedia;
+  transportSwapPreviewButton.disabled = !state.browserWorkflow?.canRun;
   transportFrameSlider.max = String(Math.max(0, state.transport.frameMax));
   transportFrameInput.max = String(Math.max(0, state.transport.frameMax));
   transportFrameSlider.value = String(clampFrame(state.transport.frameIndex));
@@ -582,6 +584,22 @@ function renderComparePreview() {
       <div class="stage-overlay">
         <strong>Processed Output</strong>
         <span>${state.processing?.outputName || "Video output"}</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.browserWorkflow?.swapPreview?.url) {
+    const preview = state.browserWorkflow.swapPreview;
+    stageComparePreview.className = "stage-screen";
+    stageComparePreview.innerHTML = `
+      <img
+        src="${preview.url}?t=${encodeURIComponent(preview.updatedAt || Date.now())}"
+        alt="Swapped preview frame"
+      />
+      <div class="stage-overlay">
+        <strong>Swapped Preview</strong>
+        <span>Frame ${preview.frameIndex ?? 0} • ${preview.sourceCount || 0} source face(s)</span>
       </div>
     `;
     return;
@@ -1531,6 +1549,29 @@ async function previewTargetFrame() {
   }
 }
 
+async function previewSwapFrame() {
+  clearFlash();
+  const originalLabel = transportSwapPreviewButton.textContent;
+  transportSwapPreviewButton.disabled = true;
+  transportSwapPreviewButton.textContent = "Rendering...";
+  try {
+    const payload = await request("/api/browser-workflow/preview/swap", {
+      method: "POST",
+      body: JSON.stringify({
+        frameIndex: clampFrame(state.transport.frameIndex),
+        workbench: state.workbench,
+      }),
+    });
+    renderBrowserWorkflow(payload.state);
+    showFlash("Geswappte Vorschau wurde aktualisiert.");
+  } catch (error) {
+    showFlash(error.message, true);
+  } finally {
+    transportSwapPreviewButton.textContent = originalLabel;
+    syncTransportControls();
+  }
+}
+
 function stepTargetFrame(delta) {
   const nextFrame = clampFrame(state.transport.frameIndex + delta);
   const video = activeTargetVideo();
@@ -1622,6 +1663,7 @@ transportPrevFrameButton.addEventListener("click", () => stepTargetFrame(-1));
 transportPlayButton.addEventListener("click", toggleTargetPlayback);
 transportNextFrameButton.addEventListener("click", () => stepTargetFrame(1));
 transportPreviewButton.addEventListener("click", previewTargetFrame);
+transportSwapPreviewButton.addEventListener("click", previewSwapFrame);
 transportFrameSlider.addEventListener("input", () => {
   setTransportFrame(transportFrameSlider.value, { syncVideo: true });
 });
