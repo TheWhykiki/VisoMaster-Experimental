@@ -153,6 +153,12 @@ class TestWebConsoleStaticContract(unittest.TestCase):
 
         self.assertFalse(offenders, f"Extensionless vendor imports found: {offenders[:10]}")
 
+    def test_german_translation_uses_window_title_helper(self) -> None:
+        source = (ROOT / "app" / "ui" / "translations" / "de.py").read_text(encoding="utf-8")
+        self.assertIn("def _set_window_title(widget, title: str) -> None:", source)
+        self.assertIn('(window, _set_window_title, "VisoMaster v0.1.6 - Fusion")', source)
+        self.assertNotIn("(window, window.setWindowTitle,", source)
+
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
     def test_workbench_defaults_are_stable(self) -> None:

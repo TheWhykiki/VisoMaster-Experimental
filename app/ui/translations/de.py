@@ -11,6 +11,10 @@ def _set_title(widget, title: str) -> None:
     widget.setTitle(title)
 
 
+def _set_window_title(widget, title: str) -> None:
+    widget.setWindowTitle(title)
+
+
 def _set_tooltip(widget, tooltip: str) -> None:
     widget.setToolTip(tooltip)
 
@@ -21,7 +25,7 @@ def _set_placeholder(widget, text: str) -> None:
 
 def apply_german_main_window_translation(window: QtWidgets.QMainWindow) -> None:
     text_updates = (
-        (window, window.setWindowTitle, "VisoMaster v0.1.6 - Fusion"),
+        (window, _set_window_title, "VisoMaster v0.1.6 - Fusion"),
         (window.actionExit, _set_text, "Beenden"),
         (window.actionLoad_Embeddings, _set_text, "Einbettungen laden"),
         (window.actionSave_Embeddings, _set_text, "Einbettungen speichern"),
