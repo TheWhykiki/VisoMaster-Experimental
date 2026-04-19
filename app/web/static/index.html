@@ -343,6 +343,18 @@
 
             <div id="transportMeta" class="transport-meta">No video loaded.</div>
 
+            <div class="quick-action-bar">
+              <div class="quick-action-copy">
+                <strong>Recommended Order</strong>
+                <span>Load media, choose a frame, find target faces, preview the swap, then run it.</span>
+              </div>
+              <div class="quick-action-buttons">
+                <button id="quickFindTargetFacesButton" class="primary" type="button">1. Find Faces</button>
+                <button id="quickSwapPreviewButton" class="ghost" type="button">2. Swap Preview</button>
+                <button id="quickRunWorkflowButton" class="primary" type="button" disabled>3. Swap Faces</button>
+              </div>
+            </div>
+
             <div class="workflow-actions workbench-actions">
               <button id="workflowRunButton" class="primary workflow-main-action" type="button" disabled>Swap Faces</button>
               <button id="processingStartButton" class="ghost" type="button" disabled>Start Saved Job</button>

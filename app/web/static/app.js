@@ -63,6 +63,9 @@ const uploadTargetButton = document.getElementById("uploadTargetButton");
 const uploadSourcesButton = document.getElementById("uploadSourcesButton");
 const findTargetFacesButton = document.getElementById("findTargetFacesButton");
 const clearTargetFacesButton = document.getElementById("clearTargetFacesButton");
+const quickFindTargetFacesButton = document.getElementById("quickFindTargetFacesButton");
+const quickSwapPreviewButton = document.getElementById("quickSwapPreviewButton");
+const quickRunWorkflowButton = document.getElementById("quickRunWorkflowButton");
 const workflowResetButton = document.getElementById("workflowResetButton");
 const workflowRunButton = document.getElementById("workflowRunButton");
 const workflowSummary = document.getElementById("workflowSummary");
@@ -384,12 +387,16 @@ function updateProcessingActionState() {
     state.selection && state.selection.type === "jobs" ? state.selection.name : null;
   const isActive = Boolean(state.processing?.active);
   const hasTargetMedia = Boolean(state.browserWorkflow?.targetMedia);
+  const canRunWorkflow = Boolean(state.browserWorkflow?.canRun) && !isActive;
   processingStartButton.disabled = !selectedJobName || isActive;
   processingStopButton.disabled = !isActive;
-  workflowRunButton.disabled = !state.browserWorkflow?.canRun || isActive;
+  workflowRunButton.disabled = !canRunWorkflow;
   findTargetFacesButton.disabled = !hasTargetMedia || isActive;
   clearTargetFacesButton.disabled =
     !(state.browserWorkflow?.detectedTargetFaces?.count > 0) || isActive;
+  quickFindTargetFacesButton.disabled = findTargetFacesButton.disabled;
+  quickSwapPreviewButton.disabled = transportSwapPreviewButton.disabled;
+  quickRunWorkflowButton.disabled = workflowRunButton.disabled;
   processingSelection.textContent = selectedJobName
     ? `Ausgewaehlter Job: ${selectedJobName}`
     : "Bitte links einen Job auswaehlen oder direkt mit Uploads arbeiten.";
@@ -1743,6 +1750,9 @@ uploadTargetButton.addEventListener("click", uploadTargetMedia);
 uploadSourcesButton.addEventListener("click", uploadSourceFaces);
 findTargetFacesButton.addEventListener("click", findTargetFaces);
 clearTargetFacesButton.addEventListener("click", clearTargetFaces);
+quickFindTargetFacesButton.addEventListener("click", findTargetFaces);
+quickSwapPreviewButton.addEventListener("click", previewSwapFrame);
+quickRunWorkflowButton.addEventListener("click", runUploadedWorkflow);
 workflowResetButton.addEventListener("click", resetWorkflow);
 workflowRunButton.addEventListener("click", runUploadedWorkflow);
 transportPrevFrameButton.addEventListener("click", () => stepTargetFrame(-1));
