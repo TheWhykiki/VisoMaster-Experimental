@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import contextlib
 import json
 import re
@@ -15,6 +16,9 @@ from app.web.server import VisoMasterWebHandler
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+)
 
 
 class QuietVisoMasterWebHandler(VisoMasterWebHandler):
@@ -123,18 +127,33 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
         self.assertIn("SwapModelSelection", schema["defaults"]["parameters"])
 
     def test_browser_workflow_upload_roundtrip_uses_isolated_state(self) -> None:
-        browser_workflow.save_target_upload("target.png", b"fake-target")
-        browser_workflow.save_source_uploads([("source-a.jpg", b"a"), ("source-b.jpg", b"b")])
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+        browser_workflow.save_source_uploads(
+            [("source-a.jpg", PNG_BYTES), ("source-b.jpg", PNG_BYTES)]
+        )
 
         state = browser_workflow.current_state()
         self.assertTrue(state["canRun"])
         self.assertEqual("target.png", state["targetMedia"]["name"])
         self.assertEqual(2, len(state["sourceFaces"]))
+        self.assertIn("/api/browser-workflow/media/target", state["targetMedia"]["mediaUrl"])
+        self.assertIn("mediaUrl", state["sourceFaces"][0])
 
         request_payload = browser_workflow.build_run_request(detection_frame=12)
         self.assertEqual(12, request_payload["detectionFrame"])
         self.assertEqual(2, len(request_payload["inputFacePaths"]))
         self.assertEqual(state["outputFolder"], request_payload["outputFolder"])
+
+    def test_frame_preview_is_generated_for_uploaded_image(self) -> None:
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+
+        preview = browser_workflow.generate_target_preview(0)
+        self.assertEqual(0, preview["frameIndex"])
+        self.assertTrue(Path(preview["path"]).is_file())
+
+        state = browser_workflow.current_state()
+        self.assertEqual(0, state["previewFrame"]["frameIndex"])
+        self.assertIn("/api/browser-workflow/preview/frame", state["previewFrame"]["url"])
 
 
 class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
@@ -145,6 +164,7 @@ class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
                 html = response.read().decode("utf-8")
             self.assertIn("VisoMaster Web Console", html)
             self.assertIn("Control Options", html)
+            self.assertIn("Preview Frame", html)
 
             payload = self.request_json(server, "/api/workbench")
             self.assertEqual(["swap", "restoration", "detect", "output"], [tab["id"] for tab in payload["tabs"]])
@@ -163,3 +183,24 @@ class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
 
             workflow_state = self.request_json(server, "/api/browser-workflow")
             self.assertEqual("/tmp/visomaster-quality-gate", workflow_state["outputFolder"])
+
+    def test_http_smoke_for_browser_media_and_preview_routes(self) -> None:
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+        browser_workflow.save_source_uploads([("source-a.jpg", PNG_BYTES)])
+
+        with self.start_server() as server:
+            payload = self.request_json(
+                server,
+                "/api/browser-workflow/preview/frame",
+                method="POST",
+                payload={"frameIndex": 0},
+            )
+            self.assertEqual(0, payload["previewFrame"]["frameIndex"])
+
+            target_url = f"http://127.0.0.1:{server.server_address[1]}/api/browser-workflow/media/target"
+            with urllib.request.urlopen(target_url, timeout=5) as response:
+                self.assertGreater(len(response.read()), 0)
+
+            preview_url = f"http://127.0.0.1:{server.server_address[1]}/api/browser-workflow/preview/frame"
+            with urllib.request.urlopen(preview_url, timeout=5) as response:
+                self.assertGreater(len(response.read()), 0)

@@ -51,6 +51,34 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
         if path == "/api/browser-workflow":
             self._write_json(HTTPStatus.OK, browser_workflow.current_state())
             return
+        if path == "/api/browser-workflow/media/target":
+            try:
+                self._serve_file(browser_workflow.target_media_path())
+            except FileNotFoundError:
+                self._write_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "Es wurde noch kein Zielmedium hochgeladen."},
+                )
+            return
+        if path.startswith("/api/browser-workflow/media/sources/"):
+            try:
+                name = unquote(path.removeprefix("/api/browser-workflow/media/sources/"))
+                self._serve_file(browser_workflow.source_media_path(name))
+            except FileNotFoundError:
+                self._write_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "Das Quellgesicht wurde nicht gefunden."},
+                )
+            return
+        if path == "/api/browser-workflow/preview/frame":
+            try:
+                self._serve_file(browser_workflow.preview_image_path())
+            except FileNotFoundError:
+                self._write_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "Es liegt noch keine Ziel-Frame-Vorschau vor."},
+                )
+            return
         if path == "/api/workbench":
             self._write_json(HTTPStatus.OK, web_workbench.schema_payload())
             return
@@ -152,6 +180,27 @@ class VisoMasterWebHandler(BaseHTTPRequestHandler):
                 self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
             self._write_json(HTTPStatus.ACCEPTED, response)
+            return
+
+        if path == "/api/browser-workflow/preview/frame":
+            payload = self._read_request_json()
+            if payload is None:
+                return
+            try:
+                preview = browser_workflow.generate_target_preview(
+                    int(payload.get("frameIndex", 0))
+                )
+            except (FileNotFoundError, ValueError) as exc:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._write_json(
+                HTTPStatus.OK,
+                {
+                    "message": "Ziel-Frame-Vorschau aktualisiert.",
+                    "previewFrame": preview,
+                    "state": browser_workflow.current_state(),
+                },
+            )
             return
 
         if path == "/api/browser-workflow/target":

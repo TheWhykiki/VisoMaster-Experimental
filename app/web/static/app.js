@@ -24,6 +24,14 @@ const state = {
     name: "",
     embedding_store: {},
   },
+  transport: {
+    frameIndex: 0,
+    frameMax: 0,
+    fps: 0,
+    mediaType: null,
+    playing: false,
+    syncingVideo: false,
+  },
 };
 
 const jobsList = document.getElementById("jobsList");
@@ -59,6 +67,13 @@ const stageTargetPreview = document.getElementById("stageTargetPreview");
 const stageComparePreview = document.getElementById("stageComparePreview");
 const targetStageMeta = document.getElementById("targetStageMeta");
 const sourceStageMeta = document.getElementById("sourceStageMeta");
+const transportPrevFrameButton = document.getElementById("transportPrevFrameButton");
+const transportPlayButton = document.getElementById("transportPlayButton");
+const transportNextFrameButton = document.getElementById("transportNextFrameButton");
+const transportPreviewButton = document.getElementById("transportPreviewButton");
+const transportFrameSlider = document.getElementById("transportFrameSlider");
+const transportFrameInput = document.getElementById("transportFrameInput");
+const transportMeta = document.getElementById("transportMeta");
 const runtimeBarFill = document.getElementById("runtimeBarFill");
 const runtimeBarLabel = document.getElementById("runtimeBarLabel");
 const runtimeBarCaption = document.getElementById("runtimeBarCaption");
@@ -414,6 +429,129 @@ function isVideoFile(path = "") {
   return /\.(mp4|mov|mkv|avi|webm|m4v)$/i.test(path);
 }
 
+function targetMediaUrl(entry) {
+  return state.previewUrls.target || entry?.mediaUrl || "";
+}
+
+function sourceMediaUrl(entry) {
+  return state.previewUrls.sources[entry.name] || entry.mediaUrl || "";
+}
+
+function activeTargetVideo() {
+  return stageTargetPreview.querySelector("video");
+}
+
+function clampFrame(frame) {
+  const frameMax = Number(state.transport.frameMax || 0);
+  return Math.max(0, Math.min(frameMax, Math.floor(Number(frame) || 0)));
+}
+
+function syncTransportControls() {
+  const isVideo = state.transport.mediaType === "video";
+  const disabled = !isVideo;
+  transportPrevFrameButton.disabled = disabled;
+  transportPlayButton.disabled = disabled;
+  transportNextFrameButton.disabled = disabled;
+  transportFrameSlider.disabled = disabled;
+  transportFrameInput.disabled = disabled;
+  transportPreviewButton.disabled = !state.browserWorkflow?.targetMedia;
+  transportFrameSlider.max = String(Math.max(0, state.transport.frameMax));
+  transportFrameInput.max = String(Math.max(0, state.transport.frameMax));
+  transportFrameSlider.value = String(clampFrame(state.transport.frameIndex));
+  transportFrameInput.value = String(clampFrame(state.transport.frameIndex));
+  transportPlayButton.textContent = state.transport.playing ? "||" : "\u25b6";
+  if (!state.browserWorkflow?.targetMedia) {
+    transportMeta.textContent = "No video loaded.";
+    return;
+  }
+  if (!isVideo) {
+    transportMeta.textContent = "Image loaded. Preview Frame saves the current still image as detection preview.";
+    return;
+  }
+  const fpsLabel =
+    state.transport.fps > 0 ? `${state.transport.fps.toFixed(2)} fps` : "fps unknown";
+  transportMeta.textContent = `Frame ${clampFrame(state.transport.frameIndex)} / ${Math.max(
+    0,
+    state.transport.frameMax
+  )} • ${fpsLabel}`;
+}
+
+function setTransportFrame(frame, options = {}) {
+  const { syncVideo = true } = options;
+  const nextFrame = clampFrame(frame);
+  state.transport.frameIndex = nextFrame;
+  detectionFrameInput.value = String(nextFrame);
+  syncTransportControls();
+
+  const video = activeTargetVideo();
+  if (!syncVideo || !video || state.transport.mediaType !== "video") {
+    return;
+  }
+
+  const fps = Number(state.transport.fps || 0);
+  if (fps <= 0) {
+    return;
+  }
+
+  state.transport.syncingVideo = true;
+  video.currentTime = nextFrame / fps;
+  window.setTimeout(() => {
+    state.transport.syncingVideo = false;
+  }, 50);
+}
+
+function syncTransportFromTarget(entry) {
+  state.transport.mediaType = entry?.fileType || null;
+  state.transport.playing = false;
+  state.transport.fps = Number(entry?.fps || 0);
+  state.transport.frameMax = Number(entry?.frameMax || 0);
+  const requestedFrame = clampFrame(detectionFrameInput.value || 0);
+  setTransportFrame(requestedFrame, { syncVideo: false });
+}
+
+function attachTargetVideoListeners(entry) {
+  const video = activeTargetVideo();
+  if (!video) {
+    syncTransportControls();
+    return;
+  }
+
+  video.addEventListener("loadedmetadata", () => {
+    const fps = Number(entry?.fps || 0);
+    if (fps <= 0 && Number.isFinite(video.duration) && video.duration > 0) {
+      state.transport.fps = Math.max(
+        0,
+        Math.round((state.transport.frameMax / video.duration) * 1000) / 1000
+      );
+    }
+    syncTransportControls();
+    setTransportFrame(detectionFrameInput.value || 0, { syncVideo: true });
+  });
+
+  video.addEventListener("timeupdate", () => {
+    if (state.transport.syncingVideo || state.transport.mediaType !== "video") {
+      return;
+    }
+    const fps = Number(state.transport.fps || 0);
+    if (fps <= 0) {
+      return;
+    }
+    setTransportFrame(Math.round(video.currentTime * fps), { syncVideo: false });
+  });
+
+  video.addEventListener("play", () => {
+    state.transport.playing = true;
+    syncTransportControls();
+  });
+
+  video.addEventListener("pause", () => {
+    state.transport.playing = false;
+    syncTransportControls();
+  });
+
+  syncTransportControls();
+}
+
 function renderComparePreview() {
   const outputPath = state.processing?.outputPath || "";
   const outputUrl = state.processing?.outputDownloadUrl;
@@ -445,14 +583,30 @@ function renderComparePreview() {
     return;
   }
 
+  if (state.browserWorkflow?.previewFrame?.url) {
+    const preview = state.browserWorkflow.previewFrame;
+    stageComparePreview.className = "stage-screen";
+    stageComparePreview.innerHTML = `
+      <img
+        src="${preview.url}?t=${encodeURIComponent(preview.updatedAt || Date.now())}"
+        alt="Selected target frame preview"
+      />
+      <div class="stage-overlay">
+        <strong>Detection Frame Preview</strong>
+        <span>Frame ${preview.frameIndex ?? 0}</span>
+      </div>
+    `;
+    return;
+  }
+
   if (state.browserWorkflow?.targetMedia) {
     const entry = state.browserWorkflow.targetMedia;
     stageComparePreview.className = "stage-screen";
     stageComparePreview.innerHTML = `
-      ${createMediaThumb(entry, state.previewUrls.target)}
+      ${createMediaThumb(entry, targetMediaUrl(entry))}
       <div class="stage-overlay">
-        <strong>Swap Preview Pending</strong>
-        <span>${entry.fileType}</span>
+        <strong>Preview Pending</strong>
+        <span>${entry.fileType === "video" ? "Use Preview Frame for the selected detection frame." : entry.fileType}</span>
       </div>
     `;
     return;
@@ -469,12 +623,28 @@ function renderTargetPreview(entry) {
     stageTargetPreview.className = "stage-screen empty";
     stageTargetPreview.textContent = "No target preview available.";
     targetStageMeta.textContent = "No target media selected.";
+    state.transport = {
+      frameIndex: 0,
+      frameMax: 0,
+      fps: 0,
+      mediaType: null,
+      playing: false,
+      syncingVideo: false,
+    };
+    syncTransportControls();
     renderComparePreview();
     return;
   }
 
-  const previewMarkup = createMediaThumb(entry, state.previewUrls.target);
-  const meta = `${entry.name} • ${entry.fileType} • ${new Date(entry.modifiedAt).toLocaleString()}`;
+  const mediaUrl = targetMediaUrl(entry);
+  const previewMarkup = createMediaThumb(entry, mediaUrl);
+  const dimensions =
+    entry.width && entry.height ? `${entry.width}x${entry.height}` : "size unknown";
+  const frameInfo =
+    entry.fileType === "video" ? ` • ${entry.frameCount || 0} frames` : "";
+  const meta = `${entry.name} • ${entry.fileType} • ${dimensions}${frameInfo} • ${new Date(
+    entry.modifiedAt
+  ).toLocaleString()}`;
   targetMediaPreview.className = "browser-grid";
   targetMediaPreview.innerHTML = `
     <article class="browser-item is-active">
@@ -486,15 +656,27 @@ function renderTargetPreview(entry) {
     </article>
   `;
 
+  const stageMarkup =
+    entry.fileType === "video" && mediaUrl
+      ? `
+        <video id="stageTargetVideo" src="${mediaUrl}" preload="metadata" playsinline></video>
+        <div class="stage-overlay">
+          <strong>${entry.name}</strong>
+          <span>Use transport controls to scrub, pause and preview a frame.</span>
+        </div>
+      `
+      : `
+        ${previewMarkup}
+        <div class="stage-overlay">
+          <strong>${entry.name}</strong>
+          <span>${entry.fileType}</span>
+        </div>
+      `;
   stageTargetPreview.className = "stage-screen";
-  stageTargetPreview.innerHTML = `
-    ${previewMarkup}
-    <div class="stage-overlay">
-      <strong>${entry.name}</strong>
-      <span>${entry.fileType}</span>
-    </div>
-  `;
+  stageTargetPreview.innerHTML = stageMarkup;
   targetStageMeta.textContent = meta;
+  syncTransportFromTarget(entry);
+  attachTargetVideoListeners(entry);
   renderComparePreview();
 }
 
@@ -512,7 +694,7 @@ function renderSourcePreviews(entries = []) {
       const url = state.previewUrls.sources[entry.name];
       return `
         <article class="browser-item source-item">
-          ${createMediaThumb(entry, url)}
+          ${createMediaThumb(entry, url || sourceMediaUrl(entry))}
           <div class="browser-item-caption">
             <strong>${entry.name}</strong>
             <span>${entry.fileType}</span>
@@ -528,6 +710,9 @@ function renderBrowserWorkflow(payload) {
   state.browserWorkflow = payload;
   renderTargetPreview(payload.targetMedia);
   renderSourcePreviews(payload.sourceFaces || []);
+  if (payload.previewFrame?.frameIndex !== undefined) {
+    setTransportFrame(payload.previewFrame.frameIndex, { syncVideo: false });
+  }
 
   workflowSummary.innerHTML = `
     <strong>Bereit:</strong> ${payload.canRun ? "Ja" : "Nein"}<br />
@@ -1299,6 +1484,43 @@ async function runUploadedWorkflow() {
   }
 }
 
+async function previewTargetFrame() {
+  clearFlash();
+  try {
+    const payload = await request("/api/browser-workflow/preview/frame", {
+      method: "POST",
+      body: JSON.stringify({
+        frameIndex: clampFrame(state.transport.frameIndex),
+      }),
+    });
+    renderBrowserWorkflow(payload.state);
+    showFlash(`Frame ${payload.previewFrame?.frameIndex ?? 0} als Preview geladen.`);
+  } catch (error) {
+    showFlash(error.message, true);
+  }
+}
+
+function stepTargetFrame(delta) {
+  const nextFrame = clampFrame(state.transport.frameIndex + delta);
+  const video = activeTargetVideo();
+  if (video && !video.paused) {
+    video.pause();
+  }
+  setTransportFrame(nextFrame, { syncVideo: true });
+}
+
+function toggleTargetPlayback() {
+  const video = activeTargetVideo();
+  if (!video || state.transport.mediaType !== "video") {
+    return;
+  }
+  if (video.paused) {
+    video.play().catch((error) => showFlash(error.message, true));
+  } else {
+    video.pause();
+  }
+}
+
 async function startSelectedJob() {
   if (!state.selection || state.selection.type !== "jobs") {
     showFlash("Bitte zuerst einen gespeicherten Job auswaehlen.", true);
@@ -1349,6 +1571,19 @@ uploadTargetButton.addEventListener("click", uploadTargetMedia);
 uploadSourcesButton.addEventListener("click", uploadSourceFaces);
 workflowResetButton.addEventListener("click", resetWorkflow);
 workflowRunButton.addEventListener("click", runUploadedWorkflow);
+transportPrevFrameButton.addEventListener("click", () => stepTargetFrame(-1));
+transportPlayButton.addEventListener("click", toggleTargetPlayback);
+transportNextFrameButton.addEventListener("click", () => stepTargetFrame(1));
+transportPreviewButton.addEventListener("click", previewTargetFrame);
+transportFrameSlider.addEventListener("input", () => {
+  setTransportFrame(transportFrameSlider.value, { syncVideo: true });
+});
+transportFrameInput.addEventListener("change", () => {
+  setTransportFrame(transportFrameInput.value, { syncVideo: true });
+});
+detectionFrameInput.addEventListener("change", () => {
+  setTransportFrame(detectionFrameInput.value, { syncVideo: true });
+});
 processingRefreshButton.addEventListener("click", () => {
   refreshProcessingStatus().catch((error) => showFlash(error.message, true));
 });

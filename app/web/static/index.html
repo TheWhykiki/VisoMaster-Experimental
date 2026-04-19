@@ -147,15 +147,32 @@
 
             <div class="transport-bar">
               <div class="transport-buttons">
-                <button class="transport-button" type="button" aria-label="previous">|&lt;</button>
-                <button class="transport-button" type="button" aria-label="play">&#9654;</button>
-                <button class="transport-button" type="button" aria-label="next">&gt;|</button>
+                <button id="transportPrevFrameButton" class="transport-button" type="button" aria-label="previous frame">
+                  |&lt;
+                </button>
+                <button id="transportPlayButton" class="transport-button" type="button" aria-label="play or pause">
+                  &#9654;
+                </button>
+                <button id="transportNextFrameButton" class="transport-button" type="button" aria-label="next frame">
+                  &gt;|
+                </button>
+                <button id="transportPreviewButton" class="mini" type="button">
+                  Preview Frame
+                </button>
+              </div>
+              <div class="transport-scrub">
+                <input id="transportFrameSlider" type="range" min="0" max="0" step="1" value="0" />
+                <label class="field compact-field transport-frame-field">
+                  <span>Frame</span>
+                  <input id="transportFrameInput" type="number" min="0" step="1" value="0" />
+                </label>
               </div>
               <div class="session-strip">
                 <span id="processingBadge" class="badge">Idle</span>
                 <span id="processingSelection" class="selection-text">Select a job or work directly with uploads.</span>
               </div>
             </div>
+            <div id="transportMeta" class="transport-meta">No video loaded.</div>
 
             <p id="processingMessage" class="panel-note processing-message">
               No active swap session.
