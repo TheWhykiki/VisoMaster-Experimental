@@ -71,6 +71,7 @@ def _detailed_failure_message(
     status = _read_json_file(status_file)
     message = str(status.get("message", "")).strip()
     if message and message not in {
+        "Headless-Runner wird vorbereitet.",
         "Geswappte Vorschau wird erzeugt.",
         "Zielgesichter werden im Browser-Workflow gesucht.",
         "Browser-Direktlauf wird gestartet.",

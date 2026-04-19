@@ -226,6 +226,25 @@ class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
             detected["faces"][0]["mediaUrl"],
         )
 
+    def test_detailed_failure_message_ignores_runner_placeholder(self) -> None:
+        status_path = self.temp_path / "preview_status.json"
+        log_path = self.temp_path / "preview_runner.log"
+        status_path.write_text(
+            json.dumps({"message": "Headless-Runner wird vorbereitet."}),
+            encoding="utf-8",
+        )
+        log_path.write_text(
+            "Traceback...\nRuntimeError: Real runner cause\n",
+            encoding="utf-8",
+        )
+
+        message = web_processing._detailed_failure_message(  # noqa: SLF001
+            status_path,
+            log_path,
+            "fallback",
+        )
+        self.assertEqual("RuntimeError: Real runner cause", message)
+
 
 class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
     def test_http_smoke_for_root_and_workbench_roundtrip(self) -> None:
