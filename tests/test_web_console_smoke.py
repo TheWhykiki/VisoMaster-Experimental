@@ -10,8 +10,10 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
+from urllib.error import HTTPError
 
-from app.services import browser_workflow, web_workbench
+from app.services import browser_workflow, web_processing, web_workbench
 from app.web.server import VisoMasterWebHandler
 
 
@@ -120,6 +122,11 @@ class TestWebConsoleStaticContract(unittest.TestCase):
             "Find Faces",
         ):
             self.assertIn(label, html)
+
+    def test_stage_target_video_uses_native_controls(self) -> None:
+        js = (ROOT / "app" / "web" / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="stageTargetVideo"', js)
+        self.assertRegex(js, r'id="stageTargetVideo"[\s\S]*?controls')
 
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
@@ -258,3 +265,26 @@ class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
             preview_url = f"http://127.0.0.1:{server.server_address[1]}/api/browser-workflow/preview/frame"
             with urllib.request.urlopen(preview_url, timeout=5) as response:
                 self.assertGreater(len(response.read()), 0)
+
+    def test_find_faces_returns_runtime_dependency_error_as_json(self) -> None:
+        browser_workflow.save_target_upload("target.png", PNG_BYTES)
+
+        with self.start_server() as server, mock.patch.object(
+            web_processing,
+            "_ensure_runtime_dependencies",
+            side_effect=ValueError("Fehlende Python-Pakete: numpy, Pillow"),
+        ):
+            url = f"http://127.0.0.1:{server.server_address[1]}/api/browser-workflow/find-faces"
+            request = urllib.request.Request(
+                url,
+                data=json.dumps({"frameIndex": 0, "workbench": {}}).encode("utf-8"),
+                method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+
+            with self.assertRaises(HTTPError) as context:
+                urllib.request.urlopen(request, timeout=5)
+
+            self.assertEqual(400, context.exception.code)
+            payload = json.loads(context.exception.read().decode("utf-8"))
+            self.assertEqual("Fehlende Python-Pakete: numpy, Pillow", payload["error"])

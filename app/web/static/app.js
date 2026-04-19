@@ -159,7 +159,11 @@ async function request(url, options = {}) {
     ? await response.json()
     : await response.text();
   if (!response.ok) {
-    const message = payload?.error || payload?.message || response.statusText;
+    const message =
+      (payload && typeof payload === "object" && (payload.error || payload.message)) ||
+      (typeof payload === "string" &&
+        payload.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()) ||
+      response.statusText;
     throw new Error(message);
   }
   return payload;
@@ -177,7 +181,11 @@ async function uploadRequest(url, files) {
     ? await response.json()
     : await response.text();
   if (!response.ok) {
-    const message = payload?.error || payload?.message || response.statusText;
+    const message =
+      (payload && typeof payload === "object" && (payload.error || payload.message)) ||
+      (typeof payload === "string" &&
+        payload.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()) ||
+      response.statusText;
     throw new Error(message);
   }
   return payload;
@@ -463,6 +471,16 @@ function activeTargetVideo() {
   return stageTargetPreview.querySelector("video");
 }
 
+function setFindFacesBusy(isBusy) {
+  const busyLabel = "Finding...";
+  const idlePrimaryLabel = "Find Faces";
+  const idleQuickLabel = "1. Find Faces";
+  findTargetFacesButton.disabled = isBusy;
+  quickFindTargetFacesButton.disabled = isBusy;
+  findTargetFacesButton.textContent = isBusy ? busyLabel : idlePrimaryLabel;
+  quickFindTargetFacesButton.textContent = isBusy ? busyLabel : idleQuickLabel;
+}
+
 function clampFrame(frame) {
   const frameMax = Number(state.transport.frameMax || 0);
   return Math.max(0, Math.min(frameMax, Math.floor(Number(frame) || 0)));
@@ -517,7 +535,8 @@ function setTransportFrame(frame, options = {}) {
   }
 
   state.transport.syncingVideo = true;
-  video.currentTime = nextFrame / fps;
+  const frameTime = nextFrame / fps;
+  video.currentTime = frameTime > 0 ? frameTime : Math.min(0.001, 1 / fps);
   window.setTimeout(() => {
     state.transport.syncingVideo = false;
   }, 50);
@@ -698,7 +717,14 @@ function renderTargetPreview(entry) {
   const stageMarkup =
     entry.fileType === "video" && mediaUrl
       ? `
-        <video id="stageTargetVideo" src="${mediaUrl}" preload="metadata" playsinline></video>
+        <video
+          id="stageTargetVideo"
+          src="${mediaUrl}"
+          muted
+          controls
+          preload="auto"
+          playsinline
+        ></video>
         <div class="stage-overlay">
           <strong>${entry.name}</strong>
           <span>Use transport controls to scrub, pause and preview a frame.</span>
@@ -1627,9 +1653,7 @@ async function previewSwapFrame() {
 async function findTargetFaces() {
   clearFlash();
   setLeftDockTab("media");
-  const originalLabel = findTargetFacesButton.textContent;
-  findTargetFacesButton.disabled = true;
-  findTargetFacesButton.textContent = "Finding...";
+  setFindFacesBusy(true);
   try {
     const payload = await request("/api/browser-workflow/find-faces", {
       method: "POST",
@@ -1643,7 +1667,7 @@ async function findTargetFaces() {
   } catch (error) {
     showFlash(error.message, true);
   } finally {
-    findTargetFacesButton.textContent = originalLabel;
+    setFindFacesBusy(false);
     updateProcessingActionState();
   }
 }

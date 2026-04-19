@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import signal
@@ -21,6 +22,14 @@ PREVIEW_STATUS_FILE = PROCESSING_DIR / "preview_status.json"
 LOG_FILE = PROCESSING_DIR / "runner.log"
 PREVIEW_LOG_FILE = PROCESSING_DIR / "preview_runner.log"
 LOG_TAIL_LINE_COUNT = 40
+RUNTIME_DEPENDENCIES = {
+    "PySide6": "PySide6",
+    "torch": "torch",
+    "cv2": "opencv-python",
+    "onnxruntime": "onnxruntime",
+    "numpy": "numpy",
+    "PIL": "Pillow",
+}
 
 _LOCK = threading.RLock()
 _PROCESS: subprocess.Popen[str] | None = None
@@ -72,6 +81,20 @@ def _detailed_failure_message(
     if log_tail:
         return log_tail[-1]
     return fallback
+
+
+def _ensure_runtime_dependencies() -> None:
+    missing = [
+        package_name
+        for module_name, package_name in RUNTIME_DEPENDENCIES.items()
+        if importlib.util.find_spec(module_name) is None
+    ]
+    if missing:
+        raise ValueError(
+            "Die aktive Web-Runtime ist unvollstaendig. "
+            f"Fehlende Python-Pakete: {', '.join(missing)}. "
+            "Bitte den Web-Host mit Start_Web_Network.bat oder Start_Web.bat neu starten."
+        )
 
 
 def _is_pid_running(pid: int | None) -> bool:
@@ -175,6 +198,7 @@ def _prepare_environment() -> dict[str, str]:
 
 def start_job(job_name: str) -> dict[str, Any]:
     storage.read_job(job_name)
+    _ensure_runtime_dependencies()
 
     with _LOCK:
         active = _active_process()
@@ -219,6 +243,7 @@ def start_upload_run(
     detection_frame: int = 0,
     workbench_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    _ensure_runtime_dependencies()
     request_payload = browser_workflow.build_run_request(
         detection_frame=detection_frame,
         workbench_state=workbench_state,
@@ -271,6 +296,7 @@ def generate_upload_preview(
     detection_frame: int = 0,
     workbench_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    _ensure_runtime_dependencies()
     request_payload = browser_workflow.build_run_request(
         detection_frame=detection_frame,
         workbench_state=workbench_state,
@@ -345,6 +371,7 @@ def generate_found_faces(
     detection_frame: int = 0,
     workbench_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    _ensure_runtime_dependencies()
     request_payload = browser_workflow.build_find_faces_request(
         detection_frame=detection_frame,
         workbench_state=workbench_state,
