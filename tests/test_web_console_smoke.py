@@ -169,6 +169,14 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         self.assertIn('if hasattr(widget, "setTitle"):', source)
         self.assertIn("widget.setWindowTitle(title)", source)
 
+    def test_models_processor_auto_downloads_missing_onnx_models(self) -> None:
+        source = (ROOT / "app" / "processors" / "models_processor.py").read_text(encoding="utf-8")
+        self.assertIn("def ensure_model_file(self, model_name: str) -> str:", source)
+        self.assertIn("model_path = self.ensure_model_file(model_name)", source)
+        self.assertIn("download_file(model_name, model_path, model_hash, model_url)", source)
+        self.assertIn("could not be downloaded automatically", source)
+        self.assertIn("self.ensure_model_file(model_name)", source)
+
 
 class TestWorkbenchAndWorkflowState(WebConsoleSandboxTestCase):
     def test_workbench_defaults_are_stable(self) -> None:

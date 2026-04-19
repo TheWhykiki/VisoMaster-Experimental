@@ -487,13 +487,14 @@ class ModelsProcessor(QtCore.QObject):
 
             self.main_window.model_loading_signal.emit()
             try:
+                model_path = self.ensure_model_file(model_name)
                 if session_options is None:
                     model_instance = onnxruntime.InferenceSession(
-                        self.models_path[model_name], providers=self.providers
+                        model_path, providers=self.providers
                     )
                 else:
                     model_instance = onnxruntime.InferenceSession(
-                        self.models_path[model_name],
+                        model_path,
                         sess_options=session_options,
                         providers=self.providers,
                     )
@@ -510,6 +511,32 @@ class ModelsProcessor(QtCore.QObject):
                 return model_instance
             finally:
                 self.main_window.model_loaded_signal.emit()
+
+    def ensure_model_file(self, model_name: str) -> str:
+        model_path = self.models_path.get(model_name)
+        if not model_path:
+            raise KeyError(f"Unknown model requested: {model_name}")
+
+        model_data = self.models_data.get(model_name, {})
+        model_hash = model_data.get("hash")
+        model_url = model_data.get("url")
+
+        if os.path.isfile(model_path):
+            return model_path
+
+        if not model_url or not model_hash:
+            raise FileNotFoundError(
+                f"Required model '{model_name}' is missing at '{model_path}' and has no auto-download metadata."
+            )
+
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        downloaded = download_file(model_name, model_path, model_hash, model_url)
+        if not downloaded or not os.path.isfile(model_path):
+            raise FileNotFoundError(
+                f"Required model '{model_name}' is missing at '{model_path}' and could not be downloaded automatically."
+            )
+
+        return model_path
 
     def load_dfm_model(self, dfm_model):
         with self.model_lock:
@@ -543,6 +570,7 @@ class ModelsProcessor(QtCore.QObject):
         self.main_window.model_loading_signal.emit()
 
         if not os.path.exists(self.models_trt_path[model_name]):
+            self.ensure_model_file(model_name)
             onnx2trt(
                 onnx_model_path=self.models_path[model_name],
                 trt_model_path=self.models_trt_path[model_name],
