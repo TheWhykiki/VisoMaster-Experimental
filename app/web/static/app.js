@@ -56,9 +56,12 @@ const detectionFrameInput = document.getElementById("detectionFrameInput");
 const targetMediaPreview = document.getElementById("targetMediaPreview");
 const sourceFacePreviewList = document.getElementById("sourceFacePreviewList");
 const stageTargetPreview = document.getElementById("stageTargetPreview");
-const stageSourcePreview = document.getElementById("stageSourcePreview");
+const stageComparePreview = document.getElementById("stageComparePreview");
 const targetStageMeta = document.getElementById("targetStageMeta");
 const sourceStageMeta = document.getElementById("sourceStageMeta");
+const runtimeBarFill = document.getElementById("runtimeBarFill");
+const runtimeBarLabel = document.getElementById("runtimeBarLabel");
+const runtimeBarCaption = document.getElementById("runtimeBarCaption");
 
 const statusBadge = document.getElementById("statusBadge");
 const statusSummaryEyebrow = document.getElementById("statusSummaryEyebrow");
@@ -94,6 +97,29 @@ const workbenchSections = document.getElementById("workbenchSections");
 const workbenchSummary = document.getElementById("workbenchSummary");
 const saveWorkbenchButton = document.getElementById("saveWorkbenchButton");
 const resetWorkbenchButton = document.getElementById("resetWorkbenchButton");
+
+const WORKBENCH_TAB_UI = {
+  swap: {
+    label: "Face Swap",
+    description:
+      "Native swap controls for model choice, similarity, strength and mask behaviour.",
+  },
+  restoration: {
+    label: "Face Editor",
+    description:
+      "Finishing and restoration tools for the swapped face, similar to the desktop side tabs.",
+  },
+  detect: {
+    label: "Common",
+    description:
+      "Shared detector, recognition and matching behaviour for the remote workflow.",
+  },
+  output: {
+    label: "Settings",
+    description:
+      "Runtime, output and encoding settings for the browser-driven host pipeline.",
+  },
+};
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
@@ -245,6 +271,7 @@ function renderStatus(status) {
   const quality = status.quality;
   const deploymentProfile = status.deploymentProfile || {};
   const runtimeProfile = status.runtimeProfile || {};
+  const overallPercent = Number(quality?.overallPercent || 0);
 
   if (quality) {
     statusBadge.textContent = `${quality.overallPercent}% Remote bereit`;
@@ -277,6 +304,12 @@ function renderStatus(status) {
       })
       .join("");
   }
+
+  runtimeBarFill.style.width = `${Math.max(0, Math.min(100, overallPercent))}%`;
+  runtimeBarLabel.textContent = `${overallPercent}% Remote Ready`;
+  runtimeBarCaption.textContent = `${
+    deploymentProfile.summary || "Remote browser client"
+  } • ${runtimeProfile.label || "starter-managed runtime"}`;
 
   const cards = [
     ["Betriebsmodus", deploymentProfile.summary || "nicht erkannt"],
@@ -373,28 +406,87 @@ function createMediaThumb(entry, url) {
   return `<div class="media-placeholder">${entry.fileType === "video" ? "VIDEO" : "IMAGE"}</div>`;
 }
 
+function isImageFile(path = "") {
+  return /\.(png|jpe?g|webp|bmp)$/i.test(path);
+}
+
+function isVideoFile(path = "") {
+  return /\.(mp4|mov|mkv|avi|webm|m4v)$/i.test(path);
+}
+
+function renderComparePreview() {
+  const outputPath = state.processing?.outputPath || "";
+  const outputUrl = state.processing?.outputDownloadUrl;
+  if (outputPath && outputUrl && isImageFile(outputPath)) {
+    stageComparePreview.className = "stage-screen";
+    stageComparePreview.innerHTML = `
+      <img src="${outputUrl}?t=${encodeURIComponent(
+        state.processing?.finishedAt || Date.now()
+      )}" alt="Swap output preview" />
+      <div class="stage-overlay">
+        <strong>Processed Output</strong>
+        <span>${state.processing?.outputName || "Image output"}</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (outputPath && outputUrl && isVideoFile(outputPath)) {
+    stageComparePreview.className = "stage-screen";
+    stageComparePreview.innerHTML = `
+      <video src="${outputUrl}?t=${encodeURIComponent(
+        state.processing?.finishedAt || Date.now()
+      )}" muted controls playsinline></video>
+      <div class="stage-overlay">
+        <strong>Processed Output</strong>
+        <span>${state.processing?.outputName || "Video output"}</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.browserWorkflow?.targetMedia) {
+    const entry = state.browserWorkflow.targetMedia;
+    stageComparePreview.className = "stage-screen";
+    stageComparePreview.innerHTML = `
+      ${createMediaThumb(entry, state.previewUrls.target)}
+      <div class="stage-overlay">
+        <strong>Swap Preview Pending</strong>
+        <span>${entry.fileType}</span>
+      </div>
+    `;
+    return;
+  }
+
+  stageComparePreview.className = "stage-screen empty";
+  stageComparePreview.textContent = "No swap preview available.";
+}
+
 function renderTargetPreview(entry) {
   if (!entry) {
-    targetMediaPreview.className = "media-preview empty";
-    targetMediaPreview.textContent = "Noch kein Zielmedium geladen.";
-    stageTargetPreview.className = "stage-preview empty";
-    stageTargetPreview.textContent = "Kein Preview verfuegbar.";
-    targetStageMeta.textContent = "Noch kein Zielmedium.";
+    targetMediaPreview.className = "browser-grid empty";
+    targetMediaPreview.textContent = "No target media loaded.";
+    stageTargetPreview.className = "stage-screen empty";
+    stageTargetPreview.textContent = "No target preview available.";
+    targetStageMeta.textContent = "No target media selected.";
+    renderComparePreview();
     return;
   }
 
   const previewMarkup = createMediaThumb(entry, state.previewUrls.target);
   const meta = `${entry.name} • ${entry.fileType} • ${new Date(entry.modifiedAt).toLocaleString()}`;
-  targetMediaPreview.className = "media-preview";
+  targetMediaPreview.className = "browser-grid";
   targetMediaPreview.innerHTML = `
-    ${previewMarkup}
-    <div class="media-caption">
-      <strong>${entry.name}</strong>
-      <span>${entry.fileType}</span>
-    </div>
+    <article class="browser-item is-active">
+      ${previewMarkup}
+      <div class="browser-item-caption">
+        <strong>${entry.name}</strong>
+        <span>${entry.fileType}</span>
+      </div>
+    </article>
   `;
 
-  stageTargetPreview.className = "stage-preview";
+  stageTargetPreview.className = "stage-screen";
   stageTargetPreview.innerHTML = `
     ${previewMarkup}
     <div class="stage-overlay">
@@ -403,26 +495,25 @@ function renderTargetPreview(entry) {
     </div>
   `;
   targetStageMeta.textContent = meta;
+  renderComparePreview();
 }
 
 function renderSourcePreviews(entries = []) {
   if (!entries.length) {
-    sourceFacePreviewList.className = "source-preview-list empty";
-    sourceFacePreviewList.textContent = "Noch keine Quellgesichter geladen.";
-    stageSourcePreview.className = "source-stage empty";
-    stageSourcePreview.textContent = "Noch keine Quellgesichter.";
-    sourceStageMeta.textContent = "Noch keine Quellen.";
+    sourceFacePreviewList.className = "browser-grid input-grid empty";
+    sourceFacePreviewList.textContent = "No source faces loaded.";
+    sourceStageMeta.textContent = "No source faces selected.";
     return;
   }
 
-  sourceFacePreviewList.className = "source-preview-list";
+  sourceFacePreviewList.className = "browser-grid input-grid";
   sourceFacePreviewList.innerHTML = entries
     .map((entry) => {
       const url = state.previewUrls.sources[entry.name];
       return `
-        <article class="source-thumb">
+        <article class="browser-item source-item">
           ${createMediaThumb(entry, url)}
-          <div class="source-thumb-copy">
+          <div class="browser-item-caption">
             <strong>${entry.name}</strong>
             <span>${entry.fileType}</span>
           </div>
@@ -430,20 +521,7 @@ function renderSourcePreviews(entries = []) {
       `;
     })
     .join("");
-
-  stageSourcePreview.className = "source-stage";
-  stageSourcePreview.innerHTML = entries
-    .map((entry) => {
-      const url = state.previewUrls.sources[entry.name];
-      return `
-        <article class="source-stage-card">
-          ${createMediaThumb(entry, url)}
-          <strong>${entry.name}</strong>
-        </article>
-      `;
-    })
-    .join("");
-  sourceStageMeta.textContent = `${entries.length} Quellgesicht(er) geladen.`;
+  sourceStageMeta.textContent = `${entries.length} source face(s) loaded.`;
 }
 
 function renderBrowserWorkflow(payload) {
@@ -509,6 +587,7 @@ function renderProcessingStatus(payload) {
     ? output.join("")
     : '<div class="item-meta">Nach einem erfolgreichen Lauf erscheint hier der Ausgabepfad.</div>';
   processingLog.value = (payload.logTail || []).join("\n");
+  renderComparePreview();
 
   const shouldPoll = ["starting", "loading", "running", "stopping"].includes(
     payload.status
@@ -640,10 +719,32 @@ function createWorkbenchInput(control, value) {
   `;
 }
 
+function displayWorkbenchTab(tab) {
+  const ui = WORKBENCH_TAB_UI[tab.id] || {};
+  return {
+    ...tab,
+    label: ui.label || tab.label,
+    description: ui.description || tab.description,
+  };
+}
+
+function findWorkbenchControl(scope, key) {
+  for (const tab of state.workbenchTabs) {
+    for (const section of tab.sections || []) {
+      for (const control of section.controls || []) {
+        if (control.scope === scope && control.key === key) {
+          return control;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function renderWorkbench() {
+  const tabs = state.workbenchTabs.map(displayWorkbenchTab);
   const activeTab =
-    state.workbenchTabs.find((tab) => tab.id === state.activeWorkbenchTab) ||
-    state.workbenchTabs[0];
+    tabs.find((tab) => tab.id === state.activeWorkbenchTab) || tabs[0];
   if (!activeTab) {
     workbenchTabs.innerHTML = "";
     workbenchSections.innerHTML = '<p class="panel-note">Keine Workbench-Daten geladen.</p>';
@@ -652,11 +753,11 @@ function renderWorkbench() {
 
   state.activeWorkbenchTab = activeTab.id;
   workbenchDescription.textContent = activeTab.description;
-  workbenchTabs.innerHTML = state.workbenchTabs
+  workbenchTabs.innerHTML = tabs
     .map(
       (tab) => `
         <button
-          class="workbench-tab ${tab.id === activeTab.id ? "is-active" : ""}"
+          class="control-tab ${tab.id === activeTab.id ? "is-active" : ""}"
           type="button"
           data-workbench-tab="${tab.id}"
         >
@@ -674,13 +775,24 @@ function renderWorkbench() {
           const value = getWorkbenchValue(control.key);
           return `
             <article class="control-card">
-              <div class="control-copy">
-                <div class="control-label-row">
-                  <label for="workbench-${control.scope}-${control.key}">${control.label}</label>
+              <div class="control-row-head">
+                <label class="control-label" for="workbench-${control.scope}-${control.key}">
+                  ${control.label}
+                </label>
+                <div class="control-row-actions">
                   <span class="control-value">${formatControlValue(control, value)}</span>
+                  <button
+                    class="control-reset"
+                    type="button"
+                    data-control-reset="${control.key}"
+                    data-control-scope="${control.scope}"
+                    aria-label="Reset ${control.label}"
+                  >
+                    ↺
+                  </button>
                 </div>
-                <p class="control-help">${control.help || ""}</p>
               </div>
+              <p class="control-help">${control.help || ""}</p>
               <div class="control-input">
                 ${createWorkbenchInput(control, value)}
               </div>
@@ -1261,9 +1373,9 @@ builderModelList.addEventListener("click", (event) => {
   renderEmbeddingDraft();
 });
 
-document.querySelectorAll("[data-utility-tab]").forEach((button) => {
-  button.addEventListener("click", () => setUtilityTab(button.dataset.utilityTab));
-});
+  document.querySelectorAll("[data-utility-tab]").forEach((button) => {
+    button.addEventListener("click", () => setUtilityTab(button.dataset.utilityTab));
+  });
 
 workbenchTabs.addEventListener("click", (event) => {
   const button = event.target.closest("[data-workbench-tab]");
@@ -1314,6 +1426,27 @@ workbenchSections.addEventListener("input", (event) => {
   if (control.type === "toggle" || control.type === "select") {
     renderWorkbench();
   }
+  scheduleWorkbenchSave();
+});
+
+workbenchSections.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-control-reset]");
+  if (!button) {
+    return;
+  }
+  const control = findWorkbenchControl(
+    button.dataset.controlScope,
+    button.dataset.controlReset
+  );
+  if (!control) {
+    return;
+  }
+  setWorkbenchValue(
+    button.dataset.controlScope,
+    button.dataset.controlReset,
+    JSON.parse(JSON.stringify(control.default))
+  );
+  renderWorkbench();
   scheduleWorkbenchSave();
 });
 

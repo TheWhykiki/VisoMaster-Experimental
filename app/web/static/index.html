@@ -3,174 +3,163 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VisoMaster Web Swap Studio</title>
+    <title>VisoMaster Web Console</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <header class="topbar">
-        <div class="brand-block">
-          <p class="eyebrow">Remote GPU Swap Studio</p>
-          <h1>VisoMaster Web Workbench</h1>
-          <p class="topbar-copy">
-            Browser auf dem Mac, GPU-Host auf Windows oder Linux. Die WebUI fokussiert sich jetzt auf Quellen,
-            Zielmedium, native Swap-Controls und den direkten Lauf.
-          </p>
+    <div class="desktop-shell">
+      <header class="window-titlebar">
+        <div class="window-brand">
+          <span class="brand-dot"></span>
+          <strong>VisoMaster Web Console</strong>
         </div>
-        <div class="topbar-actions">
-          <button id="refreshAllButton" class="primary" type="button">Aktualisieren</button>
-          <a class="ghost" href="/api/status" target="_blank" rel="noreferrer">API-Status</a>
+        <div class="window-actions">
+          <button id="refreshAllButton" class="primary" type="button">Refresh</button>
+          <a class="ghost" href="/api/status" target="_blank" rel="noreferrer">API Status</a>
         </div>
       </header>
 
+      <nav class="window-menubar">
+        <span>File</span>
+        <span>Edit</span>
+        <span>View</span>
+        <span class="window-menubar-note">Remote browser client for the GPU host</span>
+      </nav>
+
       <div id="globalFlash" class="global-flash" hidden></div>
 
-      <main class="workspace-grid">
-        <aside class="column left-column">
-          <section class="panel media-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Session Bin</p>
-                <h2>Target & Sources</h2>
-              </div>
-              <div class="panel-actions">
-                <button id="workflowResetButton" class="ghost" type="button">Leeren</button>
-                <button id="workflowRunButton" class="primary" type="button" disabled>Direkt starten</button>
-              </div>
+      <main class="desktop-grid">
+        <aside class="left-dock">
+          <section class="dock-panel media-browser-panel">
+            <div class="dock-header">
+              <h2>Target Videos and Input Faces</h2>
             </div>
 
-            <article class="media-card">
-              <div class="media-card-header">
-                <h3>Zielmedium</h3>
-                <button id="uploadTargetButton" class="mini" type="button">Laden</button>
+            <section class="browser-section">
+              <div class="section-header">
+                <h3>Target Videos/Images</h3>
+                <button id="uploadTargetButton" class="mini" type="button">Load</button>
               </div>
-              <label class="field">
-                <span>Datei</span>
+              <label class="path-picker">
+                <span>Select video or image file</span>
                 <input id="targetUploadInput" type="file" accept="image/*,video/*" />
               </label>
-              <div id="targetMediaPreview" class="media-preview empty">
-                Noch kein Zielmedium geladen.
+              <div id="targetMediaPreview" class="browser-grid empty">No target media loaded.</div>
+              <div class="browser-toolbar">
+                <label class="field compact-field">
+                  <span>Detection Frame</span>
+                  <input id="detectionFrameInput" type="number" min="0" step="1" value="0" />
+                </label>
               </div>
-            </article>
+            </section>
 
-            <article class="media-card">
-              <div class="media-card-header">
-                <h3>Quellgesichter</h3>
-                <button id="uploadSourcesButton" class="mini" type="button">Laden</button>
+            <section class="browser-section">
+              <div class="section-header">
+                <h3>Input Faces</h3>
+                <button id="uploadSourcesButton" class="mini" type="button">Load</button>
               </div>
-              <label class="field">
-                <span>Dateien</span>
+              <label class="path-picker">
+                <span>Select face image files</span>
                 <input id="sourceUploadInput" type="file" accept="image/*" multiple />
               </label>
-              <div id="sourceFacePreviewList" class="source-preview-list empty">
-                Noch keine Quellgesichter geladen.
-              </div>
-            </article>
-
-            <div class="media-form-row">
-              <label class="field compact-field">
-                <span>Erkennungsframe</span>
-                <input id="detectionFrameInput" type="number" min="0" step="1" value="0" />
-              </label>
-            </div>
-
-            <div id="workflowSummary" class="panel-note media-summary">
-              Bitte Zielmedium und mindestens ein Quellgesicht laden.
-            </div>
+              <div id="sourceFacePreviewList" class="browser-grid input-grid empty">No source faces loaded.</div>
+            </section>
           </section>
 
-          <section class="panel library-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Projekt</p>
-                <h2>Jobs, Presets, Embeddings</h2>
-              </div>
+          <section class="dock-panel project-panel">
+            <div class="dock-header">
+              <h2>Project Data</h2>
+              <button id="loadWorkspaceButton" class="mini" type="button">Workspace</button>
             </div>
 
-            <div class="library-grid">
-              <article class="library-card">
-                <div class="library-card-header">
+            <div class="project-grid">
+              <article class="project-card">
+                <div class="section-header compact-header">
                   <h3>Jobs</h3>
-                  <button data-refresh="jobs" class="mini" type="button">Neu laden</button>
+                  <button data-refresh="jobs" class="mini" type="button">Reload</button>
                 </div>
                 <ul id="jobsList" class="item-list"></ul>
               </article>
 
-              <article class="library-card">
-                <div class="library-card-header">
+              <article class="project-card">
+                <div class="section-header compact-header">
                   <h3>Presets</h3>
-                  <button data-refresh="presets" class="mini" type="button">Neu laden</button>
+                  <button data-refresh="presets" class="mini" type="button">Reload</button>
                 </div>
                 <ul id="presetsList" class="item-list compact-list"></ul>
               </article>
 
-              <article class="library-card">
-                <div class="library-card-header">
+              <article class="project-card">
+                <div class="section-header compact-header">
                   <h3>Embeddings</h3>
-                  <button data-refresh="embeddings" class="mini" type="button">Neu laden</button>
+                  <button data-refresh="embeddings" class="mini" type="button">Reload</button>
                 </div>
                 <ul id="embeddingsList" class="item-list compact-list"></ul>
               </article>
 
-              <article class="library-card">
-                <div class="library-card-header">
-                  <h3>Job-Exporte</h3>
-                  <button data-refresh="job-exports" class="mini" type="button">Neu laden</button>
+              <article class="project-card">
+                <div class="section-header compact-header">
+                  <h3>Job Exports</h3>
+                  <button data-refresh="job-exports" class="mini" type="button">Reload</button>
                 </div>
                 <ul id="jobExportsList" class="item-list compact-list"></ul>
               </article>
             </div>
 
-            <article class="workspace-card">
-              <div class="library-card-header">
-                <h3>Letzter Workspace</h3>
-                <button id="loadWorkspaceButton" class="mini" type="button">Oeffnen</button>
-              </div>
+            <article class="workspace-summary-card">
+              <h3>Last Workspace</h3>
               <div id="workspaceSummary" class="workspace-summary"></div>
             </article>
           </section>
         </aside>
 
-        <section class="column center-column">
-          <section class="panel stage-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Swap Session</p>
-                <h2>Preview & Run</h2>
+        <section class="center-stage">
+          <section class="dock-panel compare-panel">
+            <div class="dock-header compare-header">
+              <div class="panel-toggle-row">
+                <label class="panel-check is-checked"><span class="check-box"></span> Media Panel</label>
+                <label class="panel-check is-checked"><span class="check-box"></span> Faces Panel</label>
+                <label class="panel-check is-checked"><span class="check-box"></span> Parameters Panel</label>
               </div>
-              <div class="panel-actions">
-                <span id="processingBadge" class="badge">Leerlauf</span>
-                <button id="processingRefreshButton" class="ghost" type="button">Status</button>
-                <button id="processingStopButton" class="danger" type="button" disabled>Stoppen</button>
-                <button id="processingStartButton" class="primary" type="button" disabled>Job starten</button>
+              <div class="panel-toggle-row right">
+                <label class="panel-check is-checked"><span class="check-box"></span> View Face Compare</label>
+                <label class="panel-check"><span class="check-box"></span> View Face Mask</label>
               </div>
             </div>
 
-            <div class="session-headline">
-              <p id="processingSelection" class="selection-text">
-                Bitte links einen Job auswaehlen oder direkt mit Uploads arbeiten.
-              </p>
-              <p id="processingMessage" class="panel-note">Noch kein Lauf aktiv.</p>
-            </div>
-
-            <div class="preview-grid">
-              <article class="preview-panel">
-                <div class="preview-panel-header">
-                  <h3>Target View</h3>
-                  <span id="targetStageMeta" class="panel-note">Noch kein Zielmedium.</span>
+            <div class="compare-stage">
+              <article class="compare-screen">
+                <div class="compare-screen-label">
+                  <h3>Original</h3>
+                  <span id="targetStageMeta" class="panel-note">No target media selected.</span>
                 </div>
-                <div id="stageTargetPreview" class="stage-preview empty">Kein Preview verfuegbar.</div>
+                <div id="stageTargetPreview" class="stage-screen empty">No target preview available.</div>
               </article>
 
-              <article class="preview-panel">
-                <div class="preview-panel-header">
-                  <h3>Source Tray</h3>
-                  <span id="sourceStageMeta" class="panel-note">Noch keine Quellen.</span>
+              <article class="compare-screen">
+                <div class="compare-screen-label">
+                  <h3>Swap Preview</h3>
+                  <span id="sourceStageMeta" class="panel-note">No sources selected.</span>
                 </div>
-                <div id="stageSourcePreview" class="source-stage empty">Noch keine Quellgesichter.</div>
+                <div id="stageComparePreview" class="stage-screen empty">No swap preview available.</div>
               </article>
             </div>
 
+            <div class="transport-bar">
+              <div class="transport-buttons">
+                <button class="transport-button" type="button" aria-label="previous">|&lt;</button>
+                <button class="transport-button" type="button" aria-label="play">&#9654;</button>
+                <button class="transport-button" type="button" aria-label="next">&gt;|</button>
+              </div>
+              <div class="session-strip">
+                <span id="processingBadge" class="badge">Idle</span>
+                <span id="processingSelection" class="selection-text">Select a job or work directly with uploads.</span>
+              </div>
+            </div>
+
+            <p id="processingMessage" class="panel-note processing-message">
+              No active swap session.
+            </p>
             <div id="processingMeta" class="processing-meta"></div>
             <div id="processingProgress" class="processing-progress" hidden>
               <div class="processing-progress-bar">
@@ -178,166 +167,177 @@
               </div>
             </div>
             <div id="processingOutput" class="processing-output"></div>
+          </section>
+
+          <section class="dock-panel workflow-panel">
+            <div class="workflow-actions">
+              <button id="workflowRunButton" class="primary workflow-main-action" type="button" disabled>
+                Swap Faces
+              </button>
+              <button id="workflowResetButton" class="ghost" type="button">Clear Faces</button>
+              <button id="processingStartButton" class="ghost" type="button" disabled>Start Job</button>
+              <button id="processingStopButton" class="danger" type="button" disabled>Stop</button>
+              <button id="processingRefreshButton" class="ghost" type="button">Refresh Status</button>
+            </div>
+
+            <div class="workflow-workspace">
+              <article class="workflow-card">
+                <h3>Session Summary</h3>
+                <div id="workflowSummary" class="panel-note media-summary">
+                  Load target media and at least one source face to begin swapping.
+                </div>
+              </article>
+
+              <article class="workflow-card utility-card">
+                <div class="dock-header compact-utility-header">
+                  <h2>Utilities</h2>
+                  <div class="utility-tabbar">
+                    <button class="utility-tab is-active" type="button" data-utility-tab="status">Status</button>
+                    <button class="utility-tab" type="button" data-utility-tab="editor">JSON</button>
+                    <button class="utility-tab" type="button" data-utility-tab="builder">Embeddings</button>
+                  </div>
+                </div>
+
+                <div class="utility-content">
+                  <section class="utility-view is-active" data-utility-view="status">
+                    <div class="status-overview">
+                      <div class="status-summary-copy">
+                        <p id="statusSummaryEyebrow" class="eyebrow">Project Status</p>
+                        <h3 id="statusSummaryTitle">Remote GPU Web Console</h3>
+                        <p id="statusSummaryText" class="panel-note">The current remote milestone is being loaded.</p>
+                        <p id="statusSummaryNote" class="panel-note"></p>
+                      </div>
+                      <article class="status-overall-card">
+                        <span id="statusBadge" class="status-badge-inline">Loading</span>
+                        <strong id="statusOverallPercent">0%</strong>
+                        <small id="statusOverallLabel">Calculating</small>
+                      </article>
+                    </div>
+                    <div id="statusAreas" class="status-areas"></div>
+                    <div id="statusCards" class="status-cards"></div>
+                  </section>
+
+                  <section class="utility-view" data-utility-view="editor">
+                    <div class="editor-panel">
+                      <div class="section-header compact-header">
+                        <div>
+                          <h3 id="editorTitle">JSON Editor</h3>
+                          <p id="editorSubtitle" class="panel-note">
+                            Open a job, preset, embedding, export or workspace from the left side.
+                          </p>
+                        </div>
+                        <div class="panel-actions">
+                          <button id="saveButton" class="primary" type="button" disabled>Save</button>
+                          <button id="deleteButton" class="danger" type="button" disabled>Delete</button>
+                        </div>
+                      </div>
+
+                      <label class="field">
+                        <span>Name</span>
+                        <input id="nameInput" type="text" placeholder="Entry name" />
+                      </label>
+
+                      <label class="field">
+                        <span>Content</span>
+                        <textarea id="jsonEditor" spellcheck="false"></textarea>
+                      </label>
+                    </div>
+                  </section>
+
+                  <section class="utility-view" data-utility-view="builder">
+                    <div class="builder-panel">
+                      <div class="section-header compact-header">
+                        <div>
+                          <h3>Embedding Builder</h3>
+                          <p class="panel-note">Create or adjust source embeddings directly in the browser.</p>
+                        </div>
+                        <div class="panel-actions">
+                          <button id="builderResetButton" class="ghost" type="button">Reset</button>
+                          <button id="builderSaveButton" class="primary" type="button">Save</button>
+                        </div>
+                      </div>
+
+                      <div class="builder-grid">
+                        <label class="field">
+                          <span>Filename</span>
+                          <input id="builderFileName" type="text" placeholder="e.g. my_embedding" />
+                        </label>
+                        <label class="field">
+                          <span>Embedding Name</span>
+                          <input id="builderEmbeddingName" type="text" placeholder="Display name" />
+                        </label>
+                        <label class="field">
+                          <span>Model Name</span>
+                          <input id="builderModelName" type="text" placeholder="e.g. Inswapper128ArcFace" />
+                        </label>
+                      </div>
+
+                      <label class="field">
+                        <span>Vector Values</span>
+                        <textarea
+                          id="builderVectorInput"
+                          class="builder-textarea"
+                          spellcheck="false"
+                          placeholder="Insert numbers as JSON array or comma/whitespace separated list"
+                        ></textarea>
+                      </label>
+
+                      <div class="section-header compact-header">
+                        <span id="builderStats" class="panel-note">No model added yet.</span>
+                        <button id="builderAddModelButton" class="mini" type="button">Add Model</button>
+                      </div>
+
+                      <div class="builder-preview-grid">
+                        <article class="project-card">
+                          <h3>Models</h3>
+                          <ul id="builderModelList" class="item-list compact-list"></ul>
+                        </article>
+
+                        <label class="field project-card">
+                          <span>JSON Preview</span>
+                          <textarea id="builderPreview" class="builder-preview" spellcheck="false" readonly></textarea>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </article>
+            </div>
 
             <label class="field log-field">
-              <span>Runner-Log</span>
+              <span>Runner Log</span>
               <textarea id="processingLog" class="processing-log" spellcheck="false" readonly></textarea>
             </label>
           </section>
-
-          <section class="panel utility-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Werkzeuge</p>
-                <h2>Utilities</h2>
-              </div>
-              <div class="utility-tabbar">
-                <button class="utility-tab is-active" type="button" data-utility-tab="status">Status</button>
-                <button class="utility-tab" type="button" data-utility-tab="editor">JSON</button>
-                <button class="utility-tab" type="button" data-utility-tab="builder">Embeddings</button>
-              </div>
-            </div>
-
-            <div class="utility-content">
-              <section class="utility-view is-active" data-utility-view="status">
-                <div class="status-overview">
-                  <div class="status-summary-copy">
-                    <p id="statusSummaryEyebrow" class="eyebrow">Projektstatus</p>
-                    <h3 id="statusSummaryTitle">Remote-GPU-Web-Konsole</h3>
-                    <p id="statusSummaryText" class="panel-note">Der aktuelle Remote-Meilenstein wird geladen.</p>
-                    <p id="statusSummaryNote" class="panel-note"></p>
-                  </div>
-                  <article class="status-overall-card">
-                    <span id="statusBadge" class="status-badge-inline">Laedt</span>
-                    <strong id="statusOverallPercent">0%</strong>
-                    <small id="statusOverallLabel">Wird berechnet</small>
-                  </article>
-                </div>
-                <div id="statusAreas" class="status-areas"></div>
-                <div id="statusCards" class="status-cards"></div>
-              </section>
-
-              <section class="utility-view" data-utility-view="editor">
-                <div class="editor-panel">
-                  <div class="panel-header inner-header">
-                    <div>
-                      <h3 id="editorTitle">JSON-Editor</h3>
-                      <p id="editorSubtitle" class="panel-note">
-                        Oeffne links einen Job, ein Preset, ein Embedding, einen Export oder den Workspace.
-                      </p>
-                    </div>
-                    <div class="panel-actions">
-                      <button id="saveButton" class="primary" type="button" disabled>Speichern</button>
-                      <button id="deleteButton" class="danger" type="button" disabled>Loeschen</button>
-                    </div>
-                  </div>
-
-                  <label class="field">
-                    <span>Name</span>
-                    <input id="nameInput" type="text" placeholder="Name des Eintrags" />
-                  </label>
-
-                  <label class="field">
-                    <span>Inhalt</span>
-                    <textarea id="jsonEditor" spellcheck="false"></textarea>
-                  </label>
-                </div>
-              </section>
-
-              <section class="utility-view" data-utility-view="builder">
-                <div class="builder-panel">
-                  <div class="panel-header inner-header">
-                    <div>
-                      <h3>Embedding Builder</h3>
-                      <p class="panel-note">Embeddings fuer Source-Faces direkt im Browser erzeugen oder anpassen.</p>
-                    </div>
-                    <div class="panel-actions">
-                      <button id="builderResetButton" class="ghost" type="button">Zuruecksetzen</button>
-                      <button id="builderSaveButton" class="primary" type="button">Speichern</button>
-                    </div>
-                  </div>
-
-                  <div class="builder-grid">
-                    <label class="field">
-                      <span>Dateiname</span>
-                      <input id="builderFileName" type="text" placeholder="z. B. mein_embedding" />
-                    </label>
-                    <label class="field">
-                      <span>Embedding-Name</span>
-                      <input id="builderEmbeddingName" type="text" placeholder="Anzeigename im Tool" />
-                    </label>
-                    <label class="field">
-                      <span>Modellname</span>
-                      <input id="builderModelName" type="text" placeholder="z. B. Inswapper128ArcFace" />
-                    </label>
-                  </div>
-
-                  <label class="field">
-                    <span>Vektorwerte</span>
-                    <textarea
-                      id="builderVectorInput"
-                      class="builder-textarea"
-                      spellcheck="false"
-                      placeholder="Zahlen als JSON-Array, komma-, leerzeichen- oder zeilengetrennt einfuegen"
-                    ></textarea>
-                  </label>
-
-                  <div class="panel-actions">
-                    <button id="builderAddModelButton" class="mini" type="button">Modell hinzufuegen</button>
-                    <span id="builderStats" class="panel-note">Noch kein Modell hinzugefuegt.</span>
-                  </div>
-
-                  <div class="builder-preview-grid">
-                    <article class="subpanel">
-                      <h4>Modelle</h4>
-                      <ul id="builderModelList" class="item-list compact-list"></ul>
-                    </article>
-
-                    <label class="field subpanel">
-                      <span>JSON-Vorschau</span>
-                      <textarea id="builderPreview" class="builder-preview" spellcheck="false" readonly></textarea>
-                    </label>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </section>
         </section>
 
-        <aside class="column right-column">
-          <section class="panel workbench-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Control Options</p>
-                <h2>Native Swap Controls</h2>
-                <p id="workbenchDescription" class="panel-note">
-                  Die aktuellen Browser-Controls werden geladen.
-                </p>
-              </div>
+        <aside class="right-dock">
+          <section class="dock-panel control-panel">
+            <div class="dock-header">
+              <h2>Control Options</h2>
               <div class="panel-actions">
                 <button id="resetWorkbenchButton" class="ghost" type="button">Reset</button>
-                <button id="saveWorkbenchButton" class="primary" type="button">Draft sichern</button>
+                <button id="saveWorkbenchButton" class="primary" type="button">Save Draft</button>
               </div>
             </div>
 
-            <div id="workbenchTabs" class="workbench-tabbar"></div>
-            <div id="workbenchSections" class="workbench-sections"></div>
+            <div class="runtime-meter">
+              <div class="runtime-meter-track">
+                <span id="runtimeBarFill" class="runtime-meter-fill"></span>
+              </div>
+              <div class="runtime-meter-copy">
+                <strong id="runtimeBarLabel">Remote Readiness</strong>
+                <span id="runtimeBarCaption" class="panel-note">Current project and host status</span>
+              </div>
+            </div>
+
+            <p id="workbenchDescription" class="panel-note">
+              The current browser controls are being loaded.
+            </p>
+
+            <div id="workbenchTabs" class="control-tabbar"></div>
+            <div id="workbenchSections" class="control-sections"></div>
             <div id="workbenchSummary" class="workbench-summary"></div>
-          </section>
-
-          <section class="panel hint-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Workflow</p>
-                <h2>So arbeitest du jetzt</h2>
-              </div>
-            </div>
-            <ol class="hint-list">
-              <li>Zielmedium und Quellgesichter laden.</li>
-              <li>Rechts die nativen Swap- und Detector-Optionen setzen.</li>
-              <li>Entweder Direktlauf starten oder einen gespeicherten Job links auswaehlen.</li>
-              <li>Status, Fortschritt und Ausgabe mittig beobachten.</li>
-            </ol>
           </section>
         </aside>
       </main>
