@@ -111,10 +111,11 @@ class TestWebConsoleStaticContract(unittest.TestCase):
     def test_html_contains_primary_swap_regions(self) -> None:
         html = (ROOT / "app" / "web" / "static" / "index.html").read_text(encoding="utf-8")
         for label in (
-            "Target Videos and Input Faces",
-            "Control Options",
+            "Swap Session",
+            "Project Library",
+            "Swap Parameters",
             "Swap Faces",
-            "Utilities",
+            "Preview Frame",
         ):
             self.assertIn(label, html)
 
@@ -163,7 +164,7 @@ class TestWebConsoleHttpSmoke(WebConsoleSandboxTestCase):
             with urllib.request.urlopen(root_url, timeout=5) as response:
                 html = response.read().decode("utf-8")
             self.assertIn("VisoMaster Web Console", html)
-            self.assertIn("Control Options", html)
+            self.assertIn("Swap Parameters", html)
             self.assertIn("Preview Frame", html)
 
             payload = self.request_json(server, "/api/workbench")

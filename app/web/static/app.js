@@ -9,6 +9,8 @@ const state = {
     embeddings: [],
   },
   utilityTab: "status",
+  leftDockTab: "media",
+  centerPaneTab: "output",
   workbenchTabs: [],
   workbenchDefaults: { control: {}, parameters: {} },
   workbench: { control: {}, parameters: {} },
@@ -40,6 +42,8 @@ const presetsList = document.getElementById("presetsList");
 const embeddingsList = document.getElementById("embeddingsList");
 const workspaceSummary = document.getElementById("workspaceSummary");
 const globalFlash = document.getElementById("globalFlash");
+const leftDockNav = document.getElementById("leftDockNav");
+const centerPaneNav = document.getElementById("centerPaneNav");
 
 const processingBadge = document.getElementById("processingBadge");
 const processingSelection = document.getElementById("processingSelection");
@@ -1063,6 +1067,26 @@ function setUtilityTab(tab) {
   });
 }
 
+function setLeftDockTab(tab) {
+  state.leftDockTab = tab;
+  document.querySelectorAll("[data-left-dock-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.leftDockTab === tab);
+  });
+  document.querySelectorAll("[data-left-dock-view]").forEach((view) => {
+    view.classList.toggle("is-active", view.dataset.leftDockView === tab);
+  });
+}
+
+function setCenterPaneTab(tab) {
+  state.centerPaneTab = tab;
+  document.querySelectorAll("[data-center-pane-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.centerPaneTab === tab);
+  });
+  document.querySelectorAll("[data-center-pane-view]").forEach((view) => {
+    view.classList.toggle("is-active", view.dataset.centerPaneView === tab);
+  });
+}
+
 function selectEditor(type, name, data, subtitle) {
   state.selection = { type, name };
   editorTitle.textContent = `${translateCollectionName(type)}: ${name}`;
@@ -1071,6 +1095,7 @@ function selectEditor(type, name, data, subtitle) {
   jsonEditor.value = JSON.stringify(data, null, 2);
   saveButton.disabled = false;
   deleteButton.disabled = type === "workspace";
+  setLeftDockTab("tools");
   setUtilityTab("editor");
   renderAllLists();
   updateProcessingActionState();
@@ -1163,6 +1188,7 @@ function hydrateBuilderFromPayload(fileName, payload) {
   builderModelName.value = "";
   builderVectorInput.value = "";
   renderEmbeddingDraft();
+  setLeftDockTab("tools");
   setUtilityTab("builder");
 }
 
@@ -1420,6 +1446,7 @@ async function uploadTargetMedia() {
     }
     setTargetPreviewFromInput(files);
     const payload = await uploadRequest("/api/browser-workflow/target", files);
+    setLeftDockTab("media");
     renderBrowserWorkflow(payload.state);
     showFlash(`Zielmedium "${payload.saved.name}" hochgeladen.`);
   } catch (error) {
@@ -1436,6 +1463,7 @@ async function uploadSourceFaces() {
     }
     setSourcePreviewsFromInput(files);
     const payload = await uploadRequest("/api/browser-workflow/sources", files);
+    setLeftDockTab("media");
     renderBrowserWorkflow(payload.state);
     showFlash(`${payload.saved.length} Quellgesicht(er) hochgeladen.`);
   } catch (error) {
@@ -1450,6 +1478,7 @@ async function resetWorkflow() {
     targetUploadInput.value = "";
     sourceUploadInput.value = "";
     detectionFrameInput.value = "0";
+    setLeftDockTab("media");
     renderBrowserWorkflow(
       await request("/api/browser-workflow/reset", {
         method: "POST",
@@ -1478,6 +1507,7 @@ async function runUploadedWorkflow() {
         }),
       })
     );
+    setCenterPaneTab("output");
     showFlash("Browser-Direktlauf gestartet.");
   } catch (error) {
     showFlash(error.message, true);
@@ -1493,6 +1523,7 @@ async function previewTargetFrame() {
         frameIndex: clampFrame(state.transport.frameIndex),
       }),
     });
+    setCenterPaneTab("output");
     renderBrowserWorkflow(payload.state);
     showFlash(`Frame ${payload.previewFrame?.frameIndex ?? 0} als Preview geladen.`);
   } catch (error) {
@@ -1533,6 +1564,7 @@ async function startSelectedJob() {
         method: "POST",
       })
     );
+    setCenterPaneTab("output");
     showFlash(`Browser-Verarbeitung fuer "${state.selection.name}" gestartet.`);
   } catch (error) {
     showFlash(error.message, true);
@@ -1547,6 +1579,7 @@ async function stopProcessing() {
         method: "POST",
       })
     );
+    setCenterPaneTab("output");
     showFlash("Browser-Verarbeitung gestoppt.");
   } catch (error) {
     showFlash(error.message, true);
@@ -1562,6 +1595,20 @@ document.querySelectorAll("[data-refresh]").forEach((button) => {
       showFlash(error.message, true)
     );
   });
+});
+leftDockNav.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-left-dock-tab]");
+  if (!button) {
+    return;
+  }
+  setLeftDockTab(button.dataset.leftDockTab);
+});
+centerPaneNav.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-center-pane-tab]");
+  if (!button) {
+    return;
+  }
+  setCenterPaneTab(button.dataset.centerPaneTab);
 });
 document.getElementById("loadWorkspaceButton").addEventListener("click", () => {
   loadItem("workspace", "last_workspace");
@@ -1692,5 +1739,7 @@ resetWorkbenchButton.addEventListener("click", resetWorkbench);
 
 setDefaultEditorState();
 resetEmbeddingBuilder();
+setLeftDockTab("media");
+setCenterPaneTab("output");
 setUtilityTab("status");
 refreshAll().catch((error) => showFlash(error.message, true));
