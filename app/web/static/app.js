@@ -318,6 +318,7 @@ function renderStatus(status) {
 
   if (quality) {
     statusBadge.textContent = `${quality.overallPercent}% Remote bereit`;
+    statusBadge.dataset.state = overallPercent >= 100 ? "ready" : "loading";
     statusSummaryEyebrow.textContent = "Projektstatus";
     statusSummaryTitle.textContent = quality.scopeTitle;
     statusSummaryText.textContent = quality.scopeSummary;
@@ -397,6 +398,13 @@ function processingStatusLabel(status) {
       stopped: "Gestoppt",
     }[status] || status || "Unbekannt"
   );
+}
+
+function setStatusTone(element, status) {
+  if (!element) {
+    return;
+  }
+  element.dataset.state = status || "idle";
 }
 
 function updateProcessingActionState() {
@@ -964,6 +972,11 @@ function renderWorkflowGuide(payload) {
     : workflow.canRun
       ? "Ready To Swap"
       : "Setup Needed";
+  workflowGuideBadge.dataset.state = workflow.busyAction
+    ? "working"
+    : workflow.canRun
+      ? "ready"
+      : "pending";
   quickActionTitle.textContent = workflow.canRun
     ? "Ready To Run"
     : "Recommended Order";
@@ -996,11 +1009,25 @@ function renderBrowserWorkflow(payload) {
 
   const workflow = workflowState(payload);
   workflowSummary.innerHTML = `
-    <strong>Bereit:</strong> ${workflow.canRun ? "Ja" : "Nein"}<br />
-    <strong>Ausgabe:</strong> ${payload.outputFolder}<br />
-    <strong>Replace Strategy:</strong> ${assignStrategyLabel(payload.assignStrategy)}<br />
-    <strong>Found Target Faces:</strong> ${payload.detectedTargetFaces?.count || 0}<br />
-    <strong>Naechster Schritt:</strong> ${workflow.nextAction}
+    <div class="summary-metric-grid">
+      <article class="summary-metric">
+        <span>Run Ready</span>
+        <strong>${workflow.canRun ? "Yes" : "Not Yet"}</strong>
+      </article>
+      <article class="summary-metric">
+        <span>Target Faces</span>
+        <strong>${payload.detectedTargetFaces?.count || 0}</strong>
+      </article>
+      <article class="summary-metric">
+        <span>Replace Strategy</span>
+        <strong>${assignStrategyLabel(payload.assignStrategy)}</strong>
+      </article>
+      <article class="summary-metric">
+        <span>Output Folder</span>
+        <strong>${payload.outputFolder}</strong>
+      </article>
+    </div>
+    <p class="workflow-summary-next">${workflow.nextAction}</p>
   `;
   updateProcessingActionState();
 }
@@ -1008,6 +1035,7 @@ function renderBrowserWorkflow(payload) {
 function renderProcessingStatus(payload) {
   state.processing = payload;
   processingBadge.textContent = processingStatusLabel(payload.status);
+  setStatusTone(processingBadge, payload.status);
   processingMessage.textContent = payload.message || "Noch kein Lauf aktiv.";
 
   const meta = [];
@@ -1024,7 +1052,7 @@ function renderProcessingStatus(payload) {
     meta.push(`PID: ${payload.pid}`);
   }
   processingMeta.innerHTML = meta.length
-    ? meta.map((line) => `<span>${line}</span>`).join("")
+    ? meta.map((line) => `<span class="processing-pill">${line}</span>`).join("")
     : '<span class="item-meta">Noch keine Laufmetadaten.</span>';
 
   const percent = payload.progress?.percent;
@@ -1040,15 +1068,25 @@ function renderProcessingStatus(payload) {
 
   const output = [];
   if (payload.outputPath) {
-    output.push(`<div><strong>Ausgabe:</strong> ${payload.outputPath}</div>`);
+    output.push(`
+      <article class="processing-output-card">
+        <span>Ausgabe</span>
+        <strong>${payload.outputPath}</strong>
+      </article>
+    `);
   }
   if (payload.outputDownloadUrl && payload.outputExists) {
     output.push(
-      `<div><a class="ghost inline-link" href="${payload.outputDownloadUrl}" target="_blank" rel="noreferrer">Ausgabe herunterladen</a></div>`
+      `<article class="processing-output-card processing-output-card-action"><a class="ghost inline-link" href="${payload.outputDownloadUrl}" target="_blank" rel="noreferrer">Ausgabe herunterladen</a></article>`
     );
   }
   if (payload.lastMessage) {
-    output.push(`<div><strong>Hinweis:</strong> ${payload.lastMessage}</div>`);
+    output.push(`
+      <article class="processing-output-card">
+        <span>Hinweis</span>
+        <strong>${payload.lastMessage}</strong>
+      </article>
+    `);
   }
   processingOutput.innerHTML = output.length
     ? output.join("")
