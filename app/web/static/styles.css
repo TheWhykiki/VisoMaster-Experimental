@@ -26,12 +26,16 @@
 }
 
 html {
+  height: 100%;
+  overflow: hidden;
   scrollbar-color: #535861 transparent;
 }
 
 body {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(77, 185, 230, 0.14), transparent 24%),
     radial-gradient(circle at top right, rgba(243, 183, 96, 0.12), transparent 18%),
@@ -48,7 +52,9 @@ textarea {
 }
 
 .desktop-shell {
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 14%),
     linear-gradient(180deg, #141922 0%, #11161d 100%);
@@ -169,6 +175,7 @@ textarea {
   flex: 1;
   min-height: 0;
   display: grid;
+  overflow: hidden;
 }
 
 .layout-root {
@@ -191,6 +198,9 @@ textarea {
 
 .layout-panel-mounted {
   display: block;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
 }
 
 .layout-ready .layout-root {
@@ -206,10 +216,14 @@ textarea {
 .lm_goldenlayout,
 .lm_root,
 .lm_item_container,
-.lm_content,
 .lm_stack,
 .lm_items {
   background: transparent;
+}
+
+.lm_content {
+  background: transparent;
+  overflow: hidden;
 }
 
 .lm_header {
@@ -621,7 +635,8 @@ textarea {
 
 .stage-screen {
   position: relative;
-  min-height: 520px;
+  height: clamp(180px, 30vh, 420px);
+  min-height: 180px;
   border: 1px solid rgba(130, 148, 170, 0.18);
   border-radius: 16px;
   background:
@@ -635,7 +650,7 @@ textarea {
 .stage-screen video {
   width: 100%;
   height: 100%;
-  min-height: 520px;
+  min-height: 0;
   object-fit: contain;
 }
 

@@ -165,12 +165,13 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         source = (ROOT / "app" / "web" / "static" / "layout.js").read_text(encoding="utf-8")
         self.assertIn("function setLayoutReady(isReady)", source)
         self.assertIn("reportLayoutFailure", source)
-        self.assertIn('const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v4"', source)
+        self.assertIn('const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v6"', source)
         self.assertIn("function clearSavedLayouts()", source)
         self.assertIn("window.localStorage.removeItem(key)", source)
         self.assertIn('"visomaster:web-layout:v2"', source)
+        self.assertIn('"visomaster:web-layout:v4"', source)
         self.assertIn('size: "27%"', source)
-        self.assertIn('size: "48%"', source)
+        self.assertIn('size: "50%"', source)
 
     def test_german_translation_uses_window_title_helper(self) -> None:
         source = (ROOT / "app" / "ui" / "translations" / "de.py").read_text(encoding="utf-8")
@@ -481,6 +482,7 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             "active": False,
             "outputExists": False,
         }
+        backend_calls: list[dict[str, object]] = []
 
         def list_items(kind: str) -> list[dict[str, object]]:
             items = []
@@ -500,6 +502,7 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             return dict(processing_status)
 
         def start_job(job_name: str) -> dict[str, object]:
+            backend_calls.append({"name": "start_saved_job", "jobName": job_name})
             processing_status.update(
                 {
                     "status": "running",
@@ -512,6 +515,7 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             return dict(processing_status)
 
         def stop_job() -> dict[str, object]:
+            backend_calls.append({"name": "stop_processing"})
             processing_status.update(
                 {
                     "status": "stopped",
@@ -526,6 +530,13 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             detection_frame: int = 0,
             workbench_state: dict[str, object] | None = None,
         ) -> dict[str, object]:
+            backend_calls.append(
+                {
+                    "name": "run_upload_swap",
+                    "detectionFrame": detection_frame,
+                    "hasWorkbench": isinstance(workbench_state, dict),
+                }
+            )
             output = self.temp_path / "outputs" / "result.png"
             Image.new("RGB", (64, 64), (0, 180, 120)).save(output)
             processing_status.update(
@@ -546,6 +557,13 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             detection_frame: int = 0,
             workbench_state: dict[str, object] | None = None,
         ) -> dict[str, object]:
+            backend_calls.append(
+                {
+                    "name": "swap_preview",
+                    "detectionFrame": detection_frame,
+                    "hasWorkbench": isinstance(workbench_state, dict),
+                }
+            )
             preview_path = browser_workflow.swap_preview_output_path()
             Image.new("RGB", (64, 64), (220, 100, 120)).save(preview_path)
             browser_workflow.register_swap_preview(
@@ -559,6 +577,13 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             detection_frame: int = 0,
             workbench_state: dict[str, object] | None = None,
         ) -> dict[str, object]:
+            backend_calls.append(
+                {
+                    "name": "find_faces",
+                    "detectionFrame": detection_frame,
+                    "hasWorkbench": isinstance(workbench_state, dict),
+                }
+            )
             face_path = browser_workflow.found_faces_dir() / "target_face_01.png"
             Image.new("RGB", (64, 64), (100, 140, 240)).save(face_path)
             browser_workflow.register_detected_faces(
@@ -581,6 +606,7 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             }
 
         def fake_generate_target_preview(frame_index: int = 0) -> dict[str, object]:
+            backend_calls.append({"name": "target_preview", "frameIndex": frame_index})
             target = browser_workflow.target_media_path()
             asset_path = browser_workflow.PREVIEW_DIR / "target_frame.jpg"
             browser_workflow.clear_detected_faces()
@@ -742,28 +768,61 @@ class TestWebConsolePlaywrightAudit(WebConsoleSandboxTestCase):
             )
 
             with self.start_server() as server:
+                audit_screenshot = self.temp_path / "webui-e2e-audit.png"
                 script = r"""
 const { chromium } = require('playwright');
 
 (async () => {
   const pageErrors = [];
   const actionErrors = [];
+  const networkErrors = [];
   const clicked = [];
+  const checkpoints = [];
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   page.setDefaultTimeout(5000);
+  await page.addInitScript(() => {
+    localStorage.setItem('visomaster:web-layout:v1', '{"stale":true}');
+    localStorage.setItem('visomaster:web-layout:v2', '{"stale":true}');
+    localStorage.setItem('visomaster:web-layout:v3', '{"stale":true}');
+    localStorage.setItem('visomaster:web-layout:v4', '{"stale":true}');
+    localStorage.setItem('visomaster:web-layout:v5', '{"stale":true}');
+  });
   page.on('pageerror', (error) => pageErrors.push(error.message));
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       pageErrors.push(msg.text());
     }
   });
+  page.on('response', async (response) => {
+    if (response.ok()) {
+      return;
+    }
+    networkErrors.push(`${response.status()} ${response.request().method()} ${response.url()}`);
+  });
+
+  function recordCheckpoint(name) {
+    checkpoints.push(name);
+  }
 
   async function click(selector, label) {
     try {
-      await page.click(selector);
+      await page.locator(selector).click({ noWaitAfter: true });
       clicked.push(label);
       await page.waitForTimeout(150);
+    } catch (error) {
+      actionErrors.push(`${label}: ${error.message}`);
+    }
+  }
+
+  async function requireVisible(selector, label) {
+    try {
+      const locator = page.locator(selector);
+      await locator.waitFor({ state: 'visible', timeout: 5000 });
+      const box = await locator.boundingBox();
+      if (!box || box.width < 2 || box.height < 2) {
+        actionErrors.push(`${label}: visible element has invalid size ${JSON.stringify(box)}`);
+      }
     } catch (error) {
       actionErrors.push(`${label}: ${error.message}`);
     }
@@ -791,15 +850,96 @@ const { chromium } = require('playwright');
     }
   }
 
+  async function requireHitTarget(selector, label) {
+    try {
+      const hit = await page.locator(selector).evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const points = [
+          [rect.left + rect.width / 2, rect.top + rect.height / 2],
+          [rect.left + rect.width / 2, rect.bottom - 8],
+        ];
+        return points.map(([x, y]) => {
+          const node = document.elementFromPoint(x, y);
+          return {
+            ok: node === element || element.contains(node),
+            hitTag: node?.tagName || null,
+            hitId: node?.id || null,
+            hitClass: node?.className || null,
+          };
+        });
+      });
+      const blocked = hit.find((entry) => !entry.ok);
+      if (blocked) {
+        actionErrors.push(`${label}: pointer target blocked by ${JSON.stringify(blocked)}`);
+      }
+    } catch (error) {
+      actionErrors.push(`${label}: ${error.message}`);
+    }
+  }
+
+  async function requireText(selector, label, expected) {
+    try {
+      const text = (await page.locator(selector).textContent()) || '';
+      if (!text.includes(expected)) {
+        actionErrors.push(`${label}: expected "${expected}" in "${text.trim()}"`);
+      }
+    } catch (error) {
+      actionErrors.push(`${label}: ${error.message}`);
+    }
+  }
+
+  async function waitText(selector, label, expected) {
+    try {
+      await page.waitForFunction(
+        ({ selector, expected }) => {
+          const text = document.querySelector(selector)?.textContent || '';
+          return text.includes(expected);
+        },
+        { selector, expected },
+        { timeout: 5000 }
+      );
+    } catch (error) {
+      const text = (await page.locator(selector).textContent().catch(() => '')) || '';
+      actionErrors.push(`${label}: expected "${expected}" in "${text.trim()}"`);
+    }
+  }
+
   try {
     await page.goto(process.env.TEST_BASE_URL, { waitUntil: 'networkidle' });
+    await requireVisible('.layout-root .lm_root', 'golden-layout-root');
+    for (const selector of ['#panelWorkflow', '#panelViewer', '#panelOutput', '#panelParameters']) {
+      await requireVisible(selector, selector);
+    }
+    const layoutBootstrap = await page.evaluate(() => ({
+      ready: document.documentElement.classList.contains('layout-ready'),
+      storageKey: window.VisoMasterLayout?.storageKey || null,
+      hasReset: typeof window.VisoMasterLayout?.reset === 'function',
+      legacyV2: localStorage.getItem('visomaster:web-layout:v2'),
+      current: localStorage.getItem('visomaster:web-layout:v6'),
+    }));
+    if (!layoutBootstrap.ready || !layoutBootstrap.hasReset || layoutBootstrap.storageKey !== 'visomaster:web-layout:v6') {
+      actionErrors.push(`layout bootstrap invalid: ${JSON.stringify(layoutBootstrap)}`);
+    }
     const initialFlash = await page.locator('#globalFlash').textContent();
     if (initialFlash && initialFlash.trim()) {
       actionErrors.push(`initial flash: ${initialFlash.trim()}`);
     }
+    recordCheckpoint('loaded-layout');
 
     await click('#refreshAllButton', 'refreshAllButton');
     await click('#resetLayoutButton', 'resetLayoutButton');
+    const layoutAfterReset = await page.evaluate(() => ({
+      legacyV1: localStorage.getItem('visomaster:web-layout:v1'),
+      legacyV2: localStorage.getItem('visomaster:web-layout:v2'),
+      legacyV3: localStorage.getItem('visomaster:web-layout:v3'),
+      legacyV4: localStorage.getItem('visomaster:web-layout:v4'),
+      legacyV5: localStorage.getItem('visomaster:web-layout:v5'),
+      current: localStorage.getItem('visomaster:web-layout:v6'),
+    }));
+    if (layoutAfterReset.legacyV1 || layoutAfterReset.legacyV2 || layoutAfterReset.legacyV3 || layoutAfterReset.legacyV4 || layoutAfterReset.legacyV5 || !layoutAfterReset.current) {
+      actionErrors.push(`layout reset did not clean storage: ${JSON.stringify(layoutAfterReset)}`);
+    }
+    recordCheckpoint('reset-layout');
 
     await click('[data-left-dock-tab="library"]', 'leftDock-library');
     await click('[data-refresh="jobs"]', 'refresh-jobs');
@@ -817,8 +957,10 @@ const { chromium } = require('playwright');
     await page.fill('#builderModelName', 'Inswapper128ArcFace');
     await page.fill('#builderVectorInput', '0.1, 0.2, 0.3');
     await click('#builderAddModelButton', 'builderAddModelButton');
+    await requireText('#builderStats', 'builderStats', '1 Modell');
     await click('#builderSaveButton', 'builderSaveButton');
     await click('#builderResetButton', 'builderResetButton');
+    recordCheckpoint('tools-and-builder');
 
     await click('[data-left-dock-tab="library"]', 'leftDock-library-2');
     await click('#presetsList .item-button', 'select-preset');
@@ -828,15 +970,29 @@ const { chromium } = require('playwright');
     await click('[data-left-dock-tab="library"]', 'leftDock-library-export');
     await click('#jobExportsList .item-button', 'select-export');
     await click('#deleteButton', 'deleteButton');
+    recordCheckpoint('library-editor');
 
     await click('[data-left-dock-tab="media"]', 'leftDock-media');
     await page.setInputFiles('#targetUploadInput', process.env.TEST_TARGET_VIDEO);
     await click('#uploadTargetButton', 'uploadTargetButton');
     await page.setInputFiles('#sourceUploadInput', [process.env.TEST_SOURCE_IMAGE]);
     await click('#uploadSourcesButton', 'uploadSourcesButton');
+    await requireVisible('#stageTargetVideo', 'stage target video');
+    await requireHitTarget('#stageTargetVideo', 'stage target video controls');
+    const targetVideoState = await page.locator('#stageTargetVideo').evaluate((video) => ({
+      controls: video.controls,
+      muted: video.muted,
+      src: video.currentSrc || video.src,
+    }));
+    if (!targetVideoState.controls || !targetVideoState.src) {
+      actionErrors.push(`target video invalid: ${JSON.stringify(targetVideoState)}`);
+    }
+    await requireVisible('#sourceFacePreviewList .browser-item', 'source face preview card');
+    recordCheckpoint('media-uploaded');
 
     await requireEnabled('#transportPreviewButton', 'transportPreviewButton');
     await click('#transportPreviewButton', 'transportPreviewButton');
+    await requireVisible('#stageComparePreview img[alt="Selected target frame preview"]', 'target frame preview image');
     await click('#transportPrevFrameButton', 'transportPrevFrameButton');
     await click('#transportNextFrameButton', 'transportNextFrameButton');
     await click('#transportPlayButton', 'transportPlayButton-play');
@@ -850,14 +1006,19 @@ const { chromium } = require('playwright');
     await click('#clearTargetFacesButton', 'clearTargetFacesButton');
     await click('#findTargetFacesButton', 'findTargetFacesButton');
     await waitEnabled('#quickSwapPreviewButton', 'quickSwapPreviewButton-ready');
+    await requireVisible('#targetFacesPreviewList .browser-item', 'detected target face card');
+    recordCheckpoint('faces-detected');
 
     await requireEnabled('#quickSwapPreviewButton', 'quickSwapPreviewButton');
     await click('#quickSwapPreviewButton', 'quickSwapPreviewButton');
+    await requireVisible('#stageComparePreview img[alt="Swapped preview frame"]', 'swapped preview image');
     await waitEnabled('#quickRunWorkflowButton', 'quickRunWorkflowButton-ready');
     await requireEnabled('#quickRunWorkflowButton', 'quickRunWorkflowButton');
     await click('#quickRunWorkflowButton', 'quickRunWorkflowButton');
     await waitEnabled('#workflowRunButton', 'workflowRunButton-ready');
     await click('#workflowRunButton', 'workflowRunButton');
+    await requireVisible('#stageComparePreview img[alt="Swap output preview"]', 'processing output image');
+    recordCheckpoint('swap-preview-and-run');
 
     await click('[data-center-pane-tab="log"]', 'centerPane-log');
     await click('[data-center-pane-tab="notes"]', 'centerPane-notes');
@@ -870,9 +1031,11 @@ const { chromium } = require('playwright');
     await click('#processingStartButton', 'processingStartButton');
     await requireEnabled('#processingStopButton', 'processingStopButton');
     await click('#processingStopButton', 'processingStopButton');
+    recordCheckpoint('saved-job-controls');
 
     await click('[data-left-dock-tab="media"]', 'leftDock-media-2');
     await click('#workflowResetButton', 'workflowResetButton');
+    await waitText('#workflowSummary', 'workflow reset summary', 'Lade zuerst das Zielmedium');
 
     await click('[data-workbench-tab="swap"]', 'workbench-swap');
     await click('[data-workbench-tab="restoration"]', 'workbench-restoration');
@@ -880,9 +1043,13 @@ const { chromium } = require('playwright');
     await click('[data-workbench-tab="output"]', 'workbench-output');
     await click('#saveWorkbenchButton', 'saveWorkbenchButton');
     await click('#resetWorkbenchButton', 'resetWorkbenchButton');
+    recordCheckpoint('workbench-tabs');
 
     const finalFlash = await page.locator('#globalFlash').textContent();
-    console.log(JSON.stringify({ clicked, pageErrors, actionErrors, finalFlash }, null, 2));
+    if (process.env.TEST_AUDIT_SCREENSHOT) {
+      await page.screenshot({ path: process.env.TEST_AUDIT_SCREENSHOT, fullPage: true });
+    }
+    console.log(JSON.stringify({ clicked, checkpoints, pageErrors, networkErrors, actionErrors, finalFlash }, null, 2));
   } finally {
     await browser.close();
   }
@@ -897,6 +1064,7 @@ const { chromium } = require('playwright');
                         "TEST_BASE_URL": f"http://127.0.0.1:{server.server_address[1]}/",
                         "TEST_TARGET_VIDEO": str(target_video),
                         "TEST_SOURCE_IMAGE": str(source_image),
+                        "TEST_AUDIT_SCREENSHOT": str(audit_screenshot),
                     },
                     capture_output=True,
                     text=True,
@@ -911,7 +1079,22 @@ const { chromium } = require('playwright');
         )
         payload = json.loads(result.stdout.strip())
         self.assertFalse(payload["pageErrors"], payload)
+        self.assertFalse(payload["networkErrors"], payload)
         self.assertFalse(payload["actionErrors"], payload)
+        self.assertTrue(audit_screenshot.is_file(), payload)
+        self.assertLess(1000, audit_screenshot.stat().st_size, payload)
+        expected_checkpoints = {
+            "loaded-layout",
+            "reset-layout",
+            "tools-and-builder",
+            "library-editor",
+            "media-uploaded",
+            "faces-detected",
+            "swap-preview-and-run",
+            "saved-job-controls",
+            "workbench-tabs",
+        }
+        self.assertTrue(expected_checkpoints.issubset(set(payload["checkpoints"])), payload)
         expected_clicks = {
             "refreshAllButton",
             "resetLayoutButton",
@@ -942,3 +1125,14 @@ const { chromium } = require('playwright');
             "saveWorkbenchButton",
         }
         self.assertTrue(expected_clicks.issubset(set(payload["clicked"])), payload)
+        self.assertTrue(
+            {
+                "target_preview",
+                "find_faces",
+                "swap_preview",
+                "run_upload_swap",
+                "start_saved_job",
+                "stop_processing",
+            }.issubset({str(call["name"]) for call in backend_calls}),
+            backend_calls,
+        )

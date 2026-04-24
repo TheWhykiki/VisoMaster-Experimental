@@ -79,7 +79,15 @@ def main() -> int:
     if node:
         checks.insert(
             1,
-            ("JavaScript syntax", [node, "--check", "app/web/static/app.js"]),
+            (
+                "JavaScript syntax",
+                [
+                    node,
+                    "--check",
+                    "app/web/static/app.js",
+                    "app/web/static/layout.js",
+                ],
+            ),
         )
     else:
         print("[JavaScript syntax]\nnode not found, skipping syntax check.")

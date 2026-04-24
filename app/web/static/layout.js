@@ -1,10 +1,12 @@
 import { GoldenLayout } from "./vendor/golden-layout/esm/index.js";
 
-const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v4";
+const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v6";
 const LEGACY_LAYOUT_STORAGE_KEYS = [
   "visomaster:web-layout:v1",
   "visomaster:web-layout:v2",
   "visomaster:web-layout:v3",
+  "visomaster:web-layout:v4",
+  "visomaster:web-layout:v5",
 ];
 
 function defaultLayoutConfig() {
@@ -33,31 +35,31 @@ function defaultLayoutConfig() {
           componentState: { panelId: "workflow" },
         },
         {
+          type: "component",
+          title: "Viewer",
+          size: "50%",
+          componentType: "workspace-panel",
+          componentState: { panelId: "viewer" },
+        },
+        {
           type: "column",
-          size: "48%",
+          size: "23%",
           content: [
             {
               type: "component",
-              title: "Viewer",
-              size: "64%",
+              title: "Parameters",
+              size: "68%",
               componentType: "workspace-panel",
-              componentState: { panelId: "viewer" },
+              componentState: { panelId: "parameters" },
             },
             {
               type: "component",
               title: "Output",
-              size: "36%",
+              size: "32%",
               componentType: "workspace-panel",
               componentState: { panelId: "output" },
             },
           ],
-        },
-        {
-          type: "component",
-          title: "Parameters",
-          size: "25%",
-          componentType: "workspace-panel",
-          componentState: { panelId: "parameters" },
         },
       ],
     },

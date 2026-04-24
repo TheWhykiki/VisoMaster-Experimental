@@ -496,6 +496,16 @@ function activeTargetVideo() {
   return stageTargetPreview.querySelector("video");
 }
 
+function releaseActiveTargetVideo() {
+  const video = activeTargetVideo();
+  if (!video) {
+    return;
+  }
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+}
+
 function setFindFacesBusy(isBusy) {
   const busyLabel = "Finding...";
   const idlePrimaryLabel = "Find Faces";
@@ -615,6 +625,10 @@ function workflowState(payload = state.browserWorkflow) {
 
 function setUiBusy(actionLabel = null) {
   state.ui.busyAction = actionLabel;
+  if (state.browserWorkflow) {
+    renderWorkflowGuide(state.browserWorkflow);
+    renderWorkflowSummary(state.browserWorkflow);
+  }
   updateProcessingActionState();
 }
 
@@ -1007,7 +1021,11 @@ function renderBrowserWorkflow(payload) {
   if (payload.previewFrame?.frameIndex !== undefined) {
     setTransportFrame(payload.previewFrame.frameIndex, { syncVideo: false });
   }
+  renderWorkflowSummary(payload);
+  updateProcessingActionState();
+}
 
+function renderWorkflowSummary(payload) {
   const workflow = workflowState(payload);
   workflowSummary.innerHTML = `
     <div class="summary-metric-grid">
@@ -1030,7 +1048,6 @@ function renderBrowserWorkflow(payload) {
     </div>
     <p class="workflow-summary-next">${workflow.nextAction}</p>
   `;
-  updateProcessingActionState();
 }
 
 function renderProcessingStatus(payload) {
@@ -1798,6 +1815,7 @@ async function resetWorkflow() {
   clearFlash();
   setUiBusy("Session wird geleert...");
   try {
+    releaseActiveTargetVideo();
     revokePreviewUrls();
     targetUploadInput.value = "";
     sourceUploadInput.value = "";
