@@ -47,6 +47,7 @@ const workspaceSummary = document.getElementById("workspaceSummary");
 const globalFlash = document.getElementById("globalFlash");
 const leftDockNav = document.getElementById("leftDockNav");
 const centerPaneNav = document.getElementById("centerPaneNav");
+const resetLayoutButton = document.getElementById("resetLayoutButton");
 
 const processingBadge = document.getElementById("processingBadge");
 const processingSelection = document.getElementById("processingSelection");
@@ -2005,6 +2006,14 @@ async function stopProcessing() {
 
 document.getElementById("refreshAllButton").addEventListener("click", () => {
   refreshAll().catch((error) => showFlash(error.message, true));
+});
+resetLayoutButton.addEventListener("click", () => {
+  if (window.VisoMasterLayout?.reset) {
+    window.VisoMasterLayout.reset();
+    showFlash("Layout wurde zurueckgesetzt.");
+    return;
+  }
+  showFlash("Layout ist noch nicht bereit. Bitte Seite neu laden.", true);
 });
 document.querySelectorAll("[data-refresh]").forEach((button) => {
   button.addEventListener("click", () => {

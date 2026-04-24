@@ -1,6 +1,11 @@
 import { GoldenLayout } from "./vendor/golden-layout/esm/index.js";
 
-const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v2";
+const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v4";
+const LEGACY_LAYOUT_STORAGE_KEYS = [
+  "visomaster:web-layout:v1",
+  "visomaster:web-layout:v2",
+  "visomaster:web-layout:v3",
+];
 
 function defaultLayoutConfig() {
   return {
@@ -83,6 +88,16 @@ function saveLayout(layout) {
   }
 }
 
+function clearSavedLayouts() {
+  try {
+    [LAYOUT_STORAGE_KEY, ...LEGACY_LAYOUT_STORAGE_KEYS].forEach((key) =>
+      window.localStorage.removeItem(key)
+    );
+  } catch {
+    // Ignore storage cleanup failures; the live layout can still be reset in memory.
+  }
+}
+
 function setLayoutReady(isReady) {
   document.documentElement.classList.toggle("layout-ready", isReady);
 }
@@ -144,11 +159,7 @@ function mountPanels(layoutRoot, panelTemplates) {
   try {
     layout.loadLayout(loadSavedLayout());
   } catch (error) {
-    try {
-      window.localStorage.removeItem(LAYOUT_STORAGE_KEY);
-    } catch {
-      // Ignore storage cleanup failures.
-    }
+    clearSavedLayouts();
     layout.loadLayout(defaultLayoutConfig());
   }
   layout.on("stateChanged", () => saveLayout(layout));
@@ -169,7 +180,10 @@ function mountPanels(layoutRoot, panelTemplates) {
 
   window.VisoMasterLayout = {
     instance: layout,
+    storageKey: LAYOUT_STORAGE_KEY,
+    clearSavedLayouts,
     reset() {
+      clearSavedLayouts();
       layout.loadLayout(defaultLayoutConfig());
       saveLayout(layout);
       syncSize();

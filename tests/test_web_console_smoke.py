@@ -165,7 +165,10 @@ class TestWebConsoleStaticContract(unittest.TestCase):
         source = (ROOT / "app" / "web" / "static" / "layout.js").read_text(encoding="utf-8")
         self.assertIn("function setLayoutReady(isReady)", source)
         self.assertIn("reportLayoutFailure", source)
-        self.assertIn("window.localStorage.removeItem(LAYOUT_STORAGE_KEY)", source)
+        self.assertIn('const LAYOUT_STORAGE_KEY = "visomaster:web-layout:v4"', source)
+        self.assertIn("function clearSavedLayouts()", source)
+        self.assertIn("window.localStorage.removeItem(key)", source)
+        self.assertIn('"visomaster:web-layout:v2"', source)
         self.assertIn('size: "27%"', source)
         self.assertIn('size: "48%"', source)
 
@@ -796,6 +799,7 @@ const { chromium } = require('playwright');
     }
 
     await click('#refreshAllButton', 'refreshAllButton');
+    await click('#resetLayoutButton', 'resetLayoutButton');
 
     await click('[data-left-dock-tab="library"]', 'leftDock-library');
     await click('[data-refresh="jobs"]', 'refresh-jobs');
@@ -910,6 +914,7 @@ const { chromium } = require('playwright');
         self.assertFalse(payload["actionErrors"], payload)
         expected_clicks = {
             "refreshAllButton",
+            "resetLayoutButton",
             "uploadTargetButton",
             "uploadSourcesButton",
             "findTargetFacesButton",
