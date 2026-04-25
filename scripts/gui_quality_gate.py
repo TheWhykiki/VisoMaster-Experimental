@@ -61,6 +61,15 @@ def main() -> int:
             ],
         ),
         (
+            "FLUX ACE++ wrapper tests",
+            [
+                python,
+                "-m",
+                "unittest",
+                "tests.test_flux_ace_plus",
+            ],
+        ),
+        (
             "Web console smoke tests",
             [
                 python,

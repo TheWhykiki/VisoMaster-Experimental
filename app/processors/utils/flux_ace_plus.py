@@ -1,8 +1,10 @@
 import gc
+import importlib
 import inspect
 import os
 import shutil
 import traceback
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,6 +30,11 @@ ACE_PLUS_REPO_ID = "ali-vilab/ACE_Plus"
 ACE_LORA_AUTO_SPECS = {
     ACE_PORTRAIT_AUTO_OPTION: {
         "local_filename": "ace_plus_portrait_lora64.safetensors",
+        "remote_filenames": (
+            "portrait/comfyui_portrait_lora64.safetensors",
+            "comfyui_portrait_lora64.safetensors",
+            "ace_plus_portrait_lora64.safetensors",
+        ),
         "expected_filenames": (
             "comfyui_portrait_lora64.safetensors",
             "ace_plus_portrait_lora64.safetensors",
@@ -36,6 +43,11 @@ ACE_LORA_AUTO_SPECS = {
     },
     ACE_SUBJECT_AUTO_OPTION: {
         "local_filename": "ace_plus_subject_lora16.safetensors",
+        "remote_filenames": (
+            "subject/comfyui_subject_lora16.safetensors",
+            "comfyui_subject_lora16.safetensors",
+            "ace_plus_subject_lora16.safetensors",
+        ),
         "expected_filenames": (
             "comfyui_subject_lora16.safetensors",
             "ace_plus_subject_lora16.safetensors",
@@ -44,6 +56,11 @@ ACE_LORA_AUTO_SPECS = {
     },
     ACE_LOCAL_AUTO_OPTION: {
         "local_filename": "ace_plus_local_editing_lora16.safetensors",
+        "remote_filenames": (
+            "local_editing/comfyui_local_lora16.safetensors",
+            "comfyui_local_lora16.safetensors",
+            "ace_plus_local_lora16.safetensors",
+        ),
         "expected_filenames": (
             "comfyui_local_lora16.safetensors",
             "ace_plus_local_lora16.safetensors",
@@ -51,6 +68,12 @@ ACE_LORA_AUTO_SPECS = {
         "match_tokens": ("local", "lora"),
     },
 }
+
+
+@dataclass(frozen=True)
+class FluxRuntime:
+    fill_pipeline: type
+    kontext_inpaint_pipeline: type | None
 
 
 class FluxAcePlusSwapper:
@@ -71,12 +94,19 @@ class FluxAcePlusSwapper:
 
     def _get_runtime(self):
         try:
-            from diffusers import FluxInpaintPipeline, FluxKontextInpaintPipeline
-
-            return FluxKontextInpaintPipeline, FluxInpaintPipeline
-        except ImportError as exc:
+            diffusers = importlib.import_module("diffusers")
+            return FluxRuntime(
+                fill_pipeline=getattr(diffusers, "FluxFillPipeline"),
+                kontext_inpaint_pipeline=getattr(
+                    diffusers,
+                    "FluxKontextInpaintPipeline",
+                    None,
+                ),
+            )
+        except (ImportError, AttributeError) as exc:
             raise RuntimeError(
-                "ACE++ (FLUX) requires diffusers, transformers, accelerate and peft."
+                "ACE++ (FLUX) requires diffusers>=0.35 with FluxFillPipeline, "
+                "plus transformers, accelerate and peft."
             ) from exc
 
     def _resolve_model_path(self, model_name: str) -> str:
@@ -171,7 +201,7 @@ class FluxAcePlusSwapper:
         repo_snapshot_dir.mkdir(parents=True, exist_ok=True)
 
         download_errors: list[str] = []
-        for remote_filename in spec["expected_filenames"]:
+        for remote_filename in spec["remote_filenames"]:
             try:
                 downloaded_path = Path(
                     hf_hub_download(
@@ -233,16 +263,34 @@ class FluxAcePlusSwapper:
             f"Selected ACE++ / FLUX LoRA '{lora_name}' was not found locally in model_assets/flux_loras."
         )
 
-    def _pick_pipeline_class(self, use_source_reference: bool):
-        FluxKontextInpaintPipeline, FluxInpaintPipeline = self._get_runtime()
+    @staticmethod
+    def _is_kontext_model(model_source: str) -> bool:
+        return "kontext" in str(model_source).lower()
+
+    def _pick_pipeline_class(self, model_source: str, use_source_reference: bool):
+        runtime = self._get_runtime()
+        if self._is_kontext_model(model_source):
+            if runtime.kontext_inpaint_pipeline is None:
+                raise RuntimeError(
+                    "The selected FLUX Kontext model requires "
+                    "FluxKontextInpaintPipeline, but this diffusers version does "
+                    "not provide it."
+                )
+            return runtime.kontext_inpaint_pipeline
+
         if use_source_reference:
-            return FluxKontextInpaintPipeline
-        return FluxInpaintPipeline
+            raise RuntimeError(
+                "Source Reference is not directly available for FLUX.1 Fill. "
+                "Disable 'Use Source Reference' or select a local FLUX Kontext "
+                "inpaint model."
+            )
+
+        return runtime.fill_pipeline
 
     def _load_pipeline(
         self, model_source: str, use_source_reference: bool, cpu_offload: bool
     ):
-        pipeline_class = self._pick_pipeline_class(use_source_reference)
+        pipeline_class = self._pick_pipeline_class(model_source, use_source_reference)
         pipeline_class_name = pipeline_class.__name__
 
         if (
@@ -390,7 +438,7 @@ class FluxAcePlusSwapper:
             parameters["FluxLoraSelection"]
         )
         use_source_reference = bool(
-            parameters.get("FluxUseSourceReferenceToggle", True)
+            parameters.get("FluxUseSourceReferenceToggle", False)
             and source_face_rgb is not None
         )
 
@@ -434,8 +482,22 @@ class FluxAcePlusSwapper:
             call_kwargs["true_cfg_scale"] = float(
                 parameters.get("FluxTrueCFGDecimalSlider", 1.0)
             )
-        if "ip_adapter_image" in call_signature.parameters and use_source_reference:
-            call_kwargs["ip_adapter_image"] = source_image
+        if "max_sequence_length" in call_signature.parameters:
+            call_kwargs["max_sequence_length"] = int(
+                parameters.get("FluxMaxSequenceLengthSlider", 512)
+            )
+        if "strength" in call_signature.parameters:
+            call_kwargs["strength"] = float(
+                parameters.get("FluxStrengthDecimalSlider", 1.0)
+            )
+        if use_source_reference:
+            if "image_reference" not in call_signature.parameters:
+                raise RuntimeError(
+                    "The selected FLUX pipeline does not accept image_reference. "
+                    "Disable 'Use Source Reference' or select a compatible FLUX "
+                    "Kontext inpaint model."
+                )
+            call_kwargs["image_reference"] = source_image
 
         with torch.inference_mode():
             result = pipeline(**call_kwargs).images[0]

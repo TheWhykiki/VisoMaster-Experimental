@@ -214,12 +214,12 @@ SWAPPER_LAYOUT_DATA: LayoutDictTypes = {
         "FluxUseSourceReferenceToggle": {
             "level": 3,
             "label": "Use Source Reference",
-            "default": True,
+            "default": False,
             "parentSelection": "SwapModelSelection",
             "requiredSelectionValue": FLUX_SWAPPER_MODEL_NAME,
             "parentToggle": "FluxSettingsEnableToggle",
             "requiredToggleValue": True,
-            "help": "Use the assigned input face as reference image conditioning when supported by the FLUX pipeline.",
+            "help": "Only enable this with a compatible local FLUX Kontext inpaint model. FLUX.1 Fill with ACE++ LoRA does not consume source reference images directly.",
         },
         "FluxCPUOffloadToggle": {
             "level": 3,
