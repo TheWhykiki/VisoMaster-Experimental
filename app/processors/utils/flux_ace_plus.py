@@ -458,7 +458,7 @@ class FluxAcePlusSwapper:
             self._to_rgb_pil(source_face_rgb) if source_face_rgb is not None else None
         )
         mask_array = np.clip(inpaint_mask, 0.0, 1.0)
-        mask_image = Image.fromarray((mask_array * 255.0).astype(np.uint8), mode="L")
+        mask_image = Image.fromarray((mask_array * 255.0).astype(np.uint8))
 
         prompt = parameters.get("FluxPromptText", "").strip()
         negative_prompt = parameters.get("FluxNegativePromptText", "").strip()
@@ -502,7 +502,7 @@ class FluxAcePlusSwapper:
         with torch.inference_mode():
             result = pipeline(**call_kwargs).images[0]
 
-        result_np = np.asarray(result.convert("RGB"), dtype=np.uint8)
+        result_np = np.asarray(result.convert("RGB"), dtype=np.uint8).copy()
         result_tensor = torch.from_numpy(result_np).permute(2, 0, 1).to(torch.float32)
         return result_tensor.to(self.models_processor.device)
 

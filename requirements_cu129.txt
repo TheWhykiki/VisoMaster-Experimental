@@ -38,3 +38,4 @@ safetensors
 huggingface-hub
 sentencepiece
 peft
+playwright

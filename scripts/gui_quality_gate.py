@@ -41,6 +41,11 @@ def main() -> int:
         action="store_true",
         help="Collect a debug bundle automatically when any gate fails.",
     )
+    parser.add_argument(
+        "--with-playwright",
+        action="store_true",
+        help="Run the browser-level Playwright FLUX swap audit in stub mode.",
+    )
     args = parser.parse_args()
 
     python = sys.executable
@@ -66,7 +71,11 @@ def main() -> int:
                 python,
                 "-m",
                 "unittest",
-                "tests.test_flux_ace_plus",
+                "discover",
+                "-s",
+                "tests",
+                "-p",
+                "test_flux_ace_plus.py",
             ],
         ),
         (
@@ -100,6 +109,19 @@ def main() -> int:
         )
     else:
         print("[JavaScript syntax]\nnode not found, skipping syntax check.")
+
+    if args.with_playwright:
+        checks.append(
+            (
+                "Playwright FLUX GUI swap audit",
+                [
+                    python,
+                    "scripts/playwright_flux_swap_audit.py",
+                    "--mode",
+                    "stub",
+                ],
+            )
+        )
 
     failures = 0
     for name, command in checks:
