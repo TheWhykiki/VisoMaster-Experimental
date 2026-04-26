@@ -80,6 +80,19 @@ def main() -> int:
             ],
         ),
         (
+            "FLUX model discovery tests",
+            [
+                python,
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "tests",
+                "-p",
+                "test_flux_model_discovery.py",
+            ],
+        ),
+        (
             "Web processing lifecycle tests",
             [
                 python,

@@ -237,12 +237,14 @@ class LocalModelManager:
         self,
         models_path: str,
         *,
+        extra_model_paths: tuple[str, ...] = (),
         file_extensions: tuple[str, ...] = (),
         allow_directories: bool = False,
         required_directory_files: tuple[str, ...] = (),
         none_label: str | None = None,
     ):
         self.models_path = str(resolve_project_path(models_path))
+        self.extra_model_paths = tuple(extra_model_paths)
         self.file_extensions = tuple(ext.lower() for ext in file_extensions)
         self.allow_directories = allow_directories
         self.required_directory_files = required_directory_files
@@ -262,14 +264,36 @@ class LocalModelManager:
 
     def refresh_models(self) -> None:
         self.models_data.clear()
-        base_path = Path(self.models_path)
-        base_path.mkdir(parents=True, exist_ok=True)
+        for index, base_path in enumerate(self._iter_model_paths()):
+            if index == 0:
+                base_path.mkdir(parents=True, exist_ok=True)
+            if not base_path.is_dir():
+                continue
 
-        for item in sorted(base_path.iterdir(), key=lambda entry: entry.name.lower()):
-            if self.allow_directories and self._is_valid_directory(item):
-                self.models_data[item.name] = str(item)
-            elif self._is_valid_file(item):
-                self.models_data[item.name] = str(item)
+            for item in sorted(base_path.iterdir(), key=lambda entry: entry.name.lower()):
+                if self.allow_directories and self._is_valid_directory(item):
+                    self._add_model_entry(item)
+                elif self._is_valid_file(item):
+                    self._add_model_entry(item)
+
+    def _iter_model_paths(self):
+        seen: set[str] = set()
+        for raw_path in (self.models_path, *self.extra_model_paths):
+            if not raw_path:
+                continue
+            path = Path(raw_path).expanduser()
+            key = str(path).lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            yield path
+
+    def _add_model_entry(self, path: Path) -> None:
+        label = path.name
+        if label in self.models_data:
+            parent_label = path.parent.name
+            label = f"{label} ({parent_label})"
+        self.models_data[label] = str(path)
 
     def get_models_data(self) -> dict[str, str]:
         return self.models_data
@@ -288,10 +312,70 @@ class LocalModelManager:
         return self.models_data.get(model_name, "")
 
 
+def _split_model_path_env(value: str | None) -> tuple[str, ...]:
+    if not value:
+        return ()
+    return tuple(path.strip() for path in value.split(os.pathsep) if path.strip())
+
+
+def _existing_or_candidate_windows_path(path: str) -> str:
+    return path
+
+
+def _comfyui_models_root_candidates() -> tuple[str, ...]:
+    env_paths = _split_model_path_env(os.environ.get("VISOMASTER_COMFYUI_MODELS_PATH"))
+    return (
+        *env_paths,
+        _existing_or_candidate_windows_path("E:/ComfyUI_Models/models"),
+    )
+
+
+def _join_existing_model_subpaths(
+    roots: tuple[str, ...],
+    subpaths: tuple[str, ...],
+) -> tuple[str, ...]:
+    candidates: list[str] = []
+    for root in roots:
+        root_path = Path(root)
+        candidates.append(str(root_path))
+        for subpath in subpaths:
+            candidates.append(str(root_path / subpath))
+    return tuple(candidates)
+
+
+def _flux_model_search_paths() -> tuple[str, ...]:
+    env_paths = _split_model_path_env(os.environ.get("VISOMASTER_FLUX_MODEL_PATHS"))
+    comfyui_paths = _join_existing_model_subpaths(
+        _comfyui_models_root_candidates(),
+        (
+            "diffusers",
+            "diffusion_models",
+            "unet",
+            "checkpoints",
+            "flux",
+        ),
+    )
+    return (*env_paths, *comfyui_paths)
+
+
+def _flux_lora_search_paths() -> tuple[str, ...]:
+    env_paths = _split_model_path_env(os.environ.get("VISOMASTER_FLUX_LORA_PATHS"))
+    comfyui_paths = _join_existing_model_subpaths(
+        _comfyui_models_root_candidates(),
+        (
+            "loras",
+            "loras/flux",
+            "flux_loras",
+        ),
+    )
+    return (*env_paths, *comfyui_paths)
+
+
 class FluxModelManager(LocalModelManager):
     def __init__(self, models_path: str = "./model_assets/flux_models"):
         super().__init__(
             models_path,
+            extra_model_paths=_flux_model_search_paths(),
             file_extensions=(".safetensors", ".ckpt", ".bin"),
             allow_directories=True,
             required_directory_files=("model_index.json", "transformer"),
@@ -310,6 +394,7 @@ class FluxLoraManager(LocalModelManager):
     def __init__(self, models_path: str = "./model_assets/flux_loras"):
         super().__init__(
             models_path,
+            extra_model_paths=_flux_lora_search_paths(),
             file_extensions=(".safetensors", ".ckpt", ".bin", ".pt"),
             allow_directories=False,
             none_label="<no local FLUX LoRA found>",
