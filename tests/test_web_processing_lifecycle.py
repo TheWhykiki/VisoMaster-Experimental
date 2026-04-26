@@ -21,6 +21,7 @@ class WebProcessingLifecycleTest(unittest.TestCase):
             "log_file": web_processing.LOG_FILE,
             "preview_log_file": web_processing.PREVIEW_LOG_FILE,
             "process": web_processing._PROCESS,  # noqa: SLF001
+            "helper_process": web_processing._HELPER_PROCESS,  # noqa: SLF001
             "process_log_handle": web_processing._PROCESS_LOG_HANDLE,  # noqa: SLF001
         }
         web_processing.PROCESSING_DIR = self.temp_path
@@ -29,6 +30,7 @@ class WebProcessingLifecycleTest(unittest.TestCase):
         web_processing.LOG_FILE = self.temp_path / "runner.log"
         web_processing.PREVIEW_LOG_FILE = self.temp_path / "preview_runner.log"
         web_processing._PROCESS = None  # noqa: SLF001
+        web_processing._HELPER_PROCESS = None  # noqa: SLF001
         web_processing._PROCESS_LOG_HANDLE = None  # noqa: SLF001
 
     def tearDown(self) -> None:
@@ -38,6 +40,7 @@ class WebProcessingLifecycleTest(unittest.TestCase):
         web_processing.LOG_FILE = self.originals["log_file"]
         web_processing.PREVIEW_LOG_FILE = self.originals["preview_log_file"]
         web_processing._PROCESS = self.originals["process"]  # noqa: SLF001
+        web_processing._HELPER_PROCESS = self.originals["helper_process"]  # noqa: SLF001
         web_processing._PROCESS_LOG_HANDLE = self.originals["process_log_handle"]  # noqa: SLF001
         self.temp_dir.cleanup()
 
@@ -94,6 +97,38 @@ class WebProcessingLifecycleTest(unittest.TestCase):
         terminate_process.assert_called_once_with(None, 23456)
         self.assertEqual("stopped", status["status"])
         self.assertFalse(status["active"])
+
+    def test_current_status_reports_active_helper_with_preview_log(self) -> None:
+        class RunningHelper:
+            pid = 34567
+
+            def poll(self):
+                return None
+
+        web_processing._HELPER_PROCESS = RunningHelper()  # noqa: SLF001
+        web_processing.PREVIEW_STATUS_FILE.write_text(
+            json.dumps(
+                {
+                    "status": "running",
+                    "mode": "preview",
+                    "message": "Geswappte Vorschau wird erzeugt.",
+                    "pid": 34567,
+                }
+            ),
+            encoding="utf-8",
+        )
+        web_processing.PREVIEW_LOG_FILE.write_text(
+            "preview log line\n",
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(web_processing, "_is_pid_running", return_value=True):
+            status = web_processing.current_status()
+
+        self.assertEqual("running", status["status"])
+        self.assertTrue(status["active"])
+        self.assertEqual(str(web_processing.PREVIEW_LOG_FILE), status["logPath"])
+        self.assertEqual(["preview log line"], status["logTail"])
 
 
 if __name__ == "__main__":

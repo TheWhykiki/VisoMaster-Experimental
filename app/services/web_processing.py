@@ -266,12 +266,17 @@ def _status_template() -> dict[str, Any]:
     }
 
 
-def _normalize_status(status: dict[str, Any]) -> dict[str, Any]:
+def _normalize_status(
+    status: dict[str, Any],
+    *,
+    log_file: Path = LOG_FILE,
+    output_route: str = "/api/processing/output",
+) -> dict[str, Any]:
     normalized = _status_template()
     normalized.update(status)
 
-    log_tail = _read_log_tail(LOG_FILE)
-    normalized["logPath"] = str(LOG_FILE)
+    log_tail = _read_log_tail(log_file)
+    normalized["logPath"] = str(log_file)
     normalized["logTail"] = log_tail
 
     pid = normalized.get("pid")
@@ -293,7 +298,7 @@ def _normalize_status(status: dict[str, Any]) -> dict[str, Any]:
         normalized["outputExists"] = output_file.is_file()
         normalized["outputName"] = output_file.name
         if output_file.is_file():
-            normalized["outputDownloadUrl"] = "/api/processing/output"
+            normalized["outputDownloadUrl"] = output_route
     else:
         normalized["outputExists"] = False
 
@@ -329,6 +334,12 @@ def _persist_status(status: dict[str, Any]) -> dict[str, Any]:
 
 def current_status() -> dict[str, Any]:
     with _LOCK:
+        helper = _active_helper_process()
+        if helper is not None and helper.poll() is None:
+            return _normalize_status(
+                _read_json_file(PREVIEW_STATUS_FILE),
+                log_file=PREVIEW_LOG_FILE,
+            )
         status = _read_json_file(STATUS_FILE)
         if _runner_boot_is_stale(status):
             status = _fail_stale_runner(status)
@@ -391,6 +402,10 @@ def _run_helper_request(request_file: Path, status_file: Path, log_file: Path) -
         )
         with _LOCK:
             _HELPER_PROCESS = process
+            status = _read_json_file(status_file)
+            status["pid"] = process.pid
+            status["message"] = status.get("message") or "Browser-Hilfsverarbeitung wurde gestartet."
+            _write_json_file(status_file, status)
         try:
             return process.wait()
         finally:
@@ -685,7 +700,7 @@ def stop_job() -> dict[str, Any]:
             )
             _write_json_file(PREVIEW_STATUS_FILE, helper_status)
             if process is None and not _is_pid_running(pid):
-                return _normalize_status(helper_status)
+                return _normalize_status(helper_status, log_file=PREVIEW_LOG_FILE)
 
         status.update(
             {
