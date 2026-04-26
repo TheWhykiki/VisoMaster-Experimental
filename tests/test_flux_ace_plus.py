@@ -185,6 +185,29 @@ class TestableFluxAcePlusSwapper(FluxAcePlusSwapper):
         return str(self.lora_path)
 
 
+class DownloadFallbackFluxAcePlusSwapper(FluxAcePlusSwapper):
+    def __init__(self, tmp_path: Path):
+        main_window = SimpleNamespace(
+            flux_model_manager=FakeFluxManager(),
+            flux_lora_manager=FakeFluxManager(),
+        )
+        super().__init__(SimpleNamespace(device="cpu", main_window=main_window))
+        self.tmp_path = tmp_path
+        self.downloaded_loras: list[str] = []
+
+    def _download_flux_fill_model(self) -> str:
+        model_dir = self.tmp_path / "downloaded" / "FLUX.1-Fill-dev"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        return str(model_dir)
+
+    def _download_ace_lora(self, selection_label: str) -> str:
+        self.downloaded_loras.append(selection_label)
+        lora_path = self.tmp_path / "downloaded" / f"{selection_label}.safetensors"
+        lora_path.parent.mkdir(parents=True, exist_ok=True)
+        lora_path.write_bytes(b"downloaded-lora")
+        return str(lora_path)
+
+
 class FluxAcePlusSwapperTest(unittest.TestCase):
     def _base_parameters(self, use_source_reference: bool = False) -> dict:
         return {
@@ -283,6 +306,25 @@ class FluxAcePlusSwapperTest(unittest.TestCase):
 
         self.assertEqual(calls[0], "portrait/comfyui_portrait_lora64.safetensors")
         self.assertTrue(lora_exists)
+
+    def test_missing_local_model_and_lora_fall_back_to_auto_downloads(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            swapper = DownloadFallbackFluxAcePlusSwapper(Path(tmp_dir))
+
+            model_source, lora_source, model_label, lora_label = (
+                swapper._resolve_model_and_lora(
+                    {
+                        "FluxModelSelection": "stale-local-flux-model",
+                        "FluxLoraSelection": "stale-local-lora",
+                    }
+                )
+            )
+
+        self.assertIn("FLUX.1-Fill-dev", model_source)
+        self.assertTrue(lora_source.endswith(".safetensors"))
+        self.assertEqual(FLUX_FILL_AUTO_OPTION, model_label)
+        self.assertEqual(ACE_PORTRAIT_AUTO_OPTION, lora_label)
+        self.assertEqual([ACE_PORTRAIT_AUTO_OPTION], swapper.downloaded_loras)
 
 
 if __name__ == "__main__":

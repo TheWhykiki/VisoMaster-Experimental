@@ -247,20 +247,40 @@ class FluxAcePlusSwapper:
         model_source = self._resolve_model_path(model_name)
         if model_source:
             return model_source
-        if model_name == FLUX_FILL_AUTO_OPTION:
-            return self._download_flux_fill_model()
-        raise RuntimeError(
-            f"Selected FLUX model '{model_name}' was not found locally in model_assets/flux_models."
-        )
+        return self._download_flux_fill_model()
+
+    @staticmethod
+    def _fallback_lora_option(lora_name: str) -> str:
+        if lora_name in ACE_LORA_AUTO_SPECS:
+            return lora_name
+        return ACE_PORTRAIT_AUTO_OPTION
 
     def _resolve_or_download_lora_path(self, lora_name: str) -> str:
         lora_source = self._resolve_lora_path(lora_name)
         if lora_source:
             return lora_source
-        if lora_name in ACE_LORA_AUTO_SPECS:
-            return self._download_ace_lora(lora_name)
-        raise RuntimeError(
-            f"Selected ACE++ / FLUX LoRA '{lora_name}' was not found locally in model_assets/flux_loras."
+        return self._download_ace_lora(self._fallback_lora_option(lora_name))
+
+    def _resolved_model_label(self, model_name: str, model_source: str) -> str:
+        if model_source == self._resolve_model_path(model_name):
+            return model_name
+        return FLUX_FILL_AUTO_OPTION
+
+    def _resolved_lora_label(self, lora_name: str, lora_source: str) -> str:
+        if lora_source == self._resolve_lora_path(lora_name):
+            return lora_name
+        return self._fallback_lora_option(lora_name)
+
+    def _resolve_model_and_lora(self, parameters: dict) -> tuple[str, str, str, str]:
+        model_name = str(parameters.get("FluxModelSelection") or FLUX_FILL_AUTO_OPTION)
+        lora_name = str(parameters.get("FluxLoraSelection") or ACE_PORTRAIT_AUTO_OPTION)
+        model_source = self._resolve_or_download_model_path(model_name)
+        lora_source = self._resolve_or_download_lora_path(lora_name)
+        return (
+            model_source,
+            lora_source,
+            self._resolved_model_label(model_name, model_source),
+            self._resolved_lora_label(lora_name, lora_source),
         )
 
     @staticmethod
@@ -431,12 +451,7 @@ class FluxAcePlusSwapper:
         inpaint_mask: np.ndarray,
         parameters: dict,
     ) -> torch.Tensor:
-        model_source = self._resolve_or_download_model_path(
-            parameters["FluxModelSelection"]
-        )
-        lora_source = self._resolve_or_download_lora_path(
-            parameters["FluxLoraSelection"]
-        )
+        model_source, lora_source, _, _ = self._resolve_model_and_lora(parameters)
         use_source_reference = bool(
             parameters.get("FluxUseSourceReferenceToggle", False)
             and source_face_rgb is not None
