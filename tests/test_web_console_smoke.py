@@ -829,9 +829,17 @@ const { chromium } = require('playwright');
   }
 
   async function requireEnabled(selector, label) {
-    const disabled = await page.locator(selector).isDisabled();
-    if (disabled) {
-      actionErrors.push(`${label}: button is disabled`);
+    try {
+      await page.waitForFunction(
+        (sel) => {
+          const element = document.querySelector(sel);
+          return Boolean(element) && !element.disabled;
+        },
+        selector,
+        { timeout: 10000 }
+      );
+    } catch (error) {
+      actionErrors.push(`${label}: ${error.message}`);
     }
   }
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import platform
 import signal
 import subprocess
 import sys
@@ -22,6 +23,8 @@ PREVIEW_STATUS_FILE = PROCESSING_DIR / "preview_status.json"
 LOG_FILE = PROCESSING_DIR / "runner.log"
 PREVIEW_LOG_FILE = PROCESSING_DIR / "preview_runner.log"
 LOG_TAIL_LINE_COUNT = 40
+RUNNER_BOOT_TIMEOUT_SECONDS = 120
+RUNNER_STOP_TIMEOUT_SECONDS = 15
 RUNTIME_DEPENDENCIES = {
     "PySide6": "PySide6",
     "torch": "torch",
@@ -109,6 +112,109 @@ def _is_pid_running(pid: int | None) -> bool:
     return True
 
 
+def _iso_timestamp_age_seconds(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - parsed).total_seconds()
+    except ValueError:
+        return None
+
+
+def _runner_boot_is_stale(status: dict[str, Any]) -> bool:
+    if status.get("status") not in {"starting", "loading"}:
+        return False
+    if status.get("runnerStarted") or status.get("processingStarted"):
+        return False
+    age_seconds = _iso_timestamp_age_seconds(str(status.get("startedAt", "")))
+    return bool(
+        age_seconds is not None and age_seconds >= RUNNER_BOOT_TIMEOUT_SECONDS
+    )
+
+
+def _popen_creation_kwargs() -> dict[str, Any]:
+    if platform.system() == "Windows":
+        return {
+            "creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+        }
+    return {"start_new_session": True}
+
+
+def _terminate_pid_tree(pid: int | None, timeout: int = RUNNER_STOP_TIMEOUT_SECONDS) -> None:
+    if not pid or pid <= 0:
+        return
+    if platform.system() == "Windows":
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        return
+
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except OSError:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            return
+
+    deadline = time.time() + min(timeout, 5)
+    while time.time() < deadline:
+        if not _is_pid_running(pid):
+            return
+        time.sleep(0.1)
+
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except OSError:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            return
+
+
+def _terminate_process(
+    process: subprocess.Popen[str] | None,
+    pid: int | None,
+    timeout: int = RUNNER_STOP_TIMEOUT_SECONDS,
+) -> bool:
+    target_pid = process.pid if process is not None else pid
+    if process is not None and process.poll() is not None:
+        return True
+
+    try:
+        _terminate_pid_tree(target_pid, timeout=timeout)
+    except Exception:
+        if process is not None and process.poll() is None:
+            try:
+                process.kill()
+            except Exception:
+                pass
+
+    if process is not None:
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception:
+            pass
+        return process.poll() is not None
+
+    deadline = time.time() + 2
+    while time.time() < deadline:
+        if not _is_pid_running(pid):
+            return True
+        time.sleep(0.1)
+    return not _is_pid_running(pid)
+
+
 def _active_process() -> subprocess.Popen[str] | None:
     global _PROCESS, _PROCESS_LOG_HANDLE
     if _PROCESS is not None and _PROCESS.poll() is not None:
@@ -167,6 +273,27 @@ def _normalize_status(status: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _fail_stale_runner(status: dict[str, Any]) -> dict[str, Any]:
+    global _PROCESS
+    pid = status.get("pid")
+    _terminate_process(_PROCESS, pid)
+    _PROCESS = None
+    _close_process_log_handle()
+    status.update(
+        {
+            "status": "failed",
+            "message": (
+                "Der Headless-Runner hat den Start nicht bestaetigt. "
+                "Der Prozess wurde beendet; pruefe runner.log und starte den Web-Host neu, "
+                "falls Windows noch eine alte Verarbeitung anzeigt."
+            ),
+            "finishedAt": _iso_now(),
+            "staleRunnerKilled": True,
+        }
+    )
+    return _persist_status(status)
+
+
 def _persist_status(status: dict[str, Any]) -> dict[str, Any]:
     status["updatedAt"] = _iso_now()
     _write_json_file(STATUS_FILE, status)
@@ -175,14 +302,17 @@ def _persist_status(status: dict[str, Any]) -> dict[str, Any]:
 
 def current_status() -> dict[str, Any]:
     with _LOCK:
-        return _normalize_status(_read_json_file(STATUS_FILE))
+        status = _read_json_file(STATUS_FILE)
+        if _runner_boot_is_stale(status):
+            status = _fail_stale_runner(status)
+        return _normalize_status(status)
 
 
 def _build_start_command(job_name: str) -> list[str]:
     return [
         sys.executable,
         "-m",
-        "app.web.headless_runner",
+        "app.web.headless_runner_bootstrap",
         "--job",
         job_name,
         "--status-file",
@@ -194,7 +324,7 @@ def _build_request_command(request_file: Path, status_file: Path) -> list[str]:
     return [
         sys.executable,
         "-m",
-        "app.web.headless_runner",
+        "app.web.headless_runner_bootstrap",
         "--request-file",
         str(request_file),
         "--status-file",
@@ -241,6 +371,7 @@ def start_job(job_name: str) -> dict[str, Any]:
                 stderr=subprocess.STDOUT,
                 text=True,
                 env=_prepare_environment(),
+                **_popen_creation_kwargs(),
             )
         except Exception:
             log_handle.close()
@@ -302,6 +433,7 @@ def start_upload_run(
                 stderr=subprocess.STDOUT,
                 text=True,
                 env=_prepare_environment(),
+                **_popen_creation_kwargs(),
             )
         except Exception:
             log_handle.close()
@@ -484,20 +616,24 @@ def stop_job() -> dict[str, Any]:
         )
         _persist_status(status)
 
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=8)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
-            finally:
-                global _PROCESS
-                _PROCESS = None
-                _close_process_log_handle()
-        elif _is_pid_running(pid):
-            os.kill(pid, signal.SIGTERM)
-            _close_process_log_handle()
+        stopped = _terminate_process(process, pid)
+        global _PROCESS
+        _PROCESS = None
+        _close_process_log_handle()
+
+        if not stopped and _is_pid_running(pid):
+            status.update(
+                {
+                    "status": "failed",
+                    "message": (
+                        "Stop wurde angefordert, aber der Headless-Prozess laeuft "
+                        f"weiter (PID {pid}). Bitte den Prozess auf dem Host beenden."
+                    ),
+                    "finishedAt": _iso_now(),
+                }
+            )
+            _persist_status(status)
+            return _normalize_status(status)
 
         status.update(
             {

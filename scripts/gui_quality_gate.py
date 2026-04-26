@@ -62,6 +62,7 @@ def main() -> int:
                 "app/services/web_processing.py",
                 "app/services/web_workbench.py",
                 "app/web/server.py",
+                "app/web/headless_runner_bootstrap.py",
                 "app/web/headless_runner.py",
             ],
         ),
@@ -76,6 +77,19 @@ def main() -> int:
                 "tests",
                 "-p",
                 "test_flux_ace_plus.py",
+            ],
+        ),
+        (
+            "Web processing lifecycle tests",
+            [
+                python,
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "tests",
+                "-p",
+                "test_web_processing_lifecycle.py",
             ],
         ),
         (

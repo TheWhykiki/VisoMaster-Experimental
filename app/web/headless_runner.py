@@ -87,6 +87,11 @@ class Runner:
             "status": "starting",
             "message": "Headless-Runner wird vorbereitet.",
             "startedAt": _iso_now(),
+            "pid": os.getpid(),
+            "mode": self.mode,
+            "runnerBootstrapped": True,
+            "runnerStarted": True,
+            "runnerStartedAt": _iso_now(),
         }
         self.started_unix = time.time()
         self.processing_started = False
@@ -134,6 +139,7 @@ class Runner:
 
     def _write_status(self, **updates: Any) -> None:
         self.status.update(updates)
+        self.status["pid"] = os.getpid()
         self.status["updatedAt"] = _iso_now()
         _write_status_file(self.status_file, self.status)
 
@@ -191,6 +197,10 @@ class Runner:
     def _load_target_media(self, media_path: str) -> None:
         if not self.main_window:
             raise RuntimeError("MainWindow ist nicht initialisiert.")
+        self._write_status(
+            status="loading",
+            message=f"Zielmedium wird geladen: {Path(media_path).name}",
+        )
 
         list_view_actions.clear_stop_loading_target_media(self.main_window)
         card_actions.clear_target_faces(self.main_window, refresh_frame=False)
@@ -216,6 +226,10 @@ class Runner:
     def _load_input_faces(self, input_paths: list[str]) -> None:
         if not self.main_window:
             raise RuntimeError("MainWindow ist nicht initialisiert.")
+        self._write_status(
+            status="loading",
+            message=f"{len(input_paths)} Quellgesicht(er) werden geladen.",
+        )
 
         list_view_actions.clear_stop_loading_input_media(self.main_window)
         card_actions.clear_input_faces(self.main_window)
@@ -278,7 +292,15 @@ class Runner:
             self.main_window.video_processor.process_current_frame()
             QtWidgets.QApplication.processEvents()
 
+        self._write_status(
+            status="loading",
+            message="Zielgesichter werden im Headless-Runner erkannt.",
+        )
         self._detect_target_faces()
+        self._write_status(
+            status="loading",
+            message="Workbench-Parameter und Source-Zuordnung werden angewendet.",
+        )
         self._apply_workbench_parameters()
         input_faces = list(self.main_window.input_faces.values())
         assign_strategy = str(
@@ -297,6 +319,10 @@ class Runner:
 
         list(self.main_window.target_faces.values())[0].click()
         self.main_window.swapfacesButton.setChecked(True)
+        self._write_status(
+            status="loading",
+            message="Swap wird fuer den aktuellen Frame vorbereitet.",
+        )
         video_control_actions.process_swap_faces(self.main_window)
         QtWidgets.QApplication.processEvents()
 
@@ -662,7 +688,15 @@ class Runner:
 
     def run(self) -> int:
         self.install_dialog_patches()
+        self._write_status(
+            status="loading",
+            message="QApplication wird fuer den Headless-Runner erstellt.",
+        )
         self.app = self.create_application()
+        self._write_status(
+            status="loading",
+            message="Headless-MainWindow wird initialisiert.",
+        )
         self.main_window = HeadlessMainWindow()
         self.main_window.hide()
         self.main_window.video_processor.processing_started_signal.connect(
