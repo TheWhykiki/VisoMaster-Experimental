@@ -36,6 +36,7 @@ transformers>=4.47.0
 accelerate
 safetensors
 huggingface-hub
+imageio-ffmpeg
 sentencepiece
 peft
 playwright

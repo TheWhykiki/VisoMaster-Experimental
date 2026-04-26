@@ -785,10 +785,31 @@ def get_output_file_path(
 
 
 def is_ffmpeg_in_path():
+    ensure_ffmpeg_on_path()
     if not cmd_exist("ffmpeg"):
         print("FFMPEG Not found in your system!")
         return False
     return True
+
+
+def ensure_ffmpeg_on_path() -> str | None:
+    existing = shutil.which("ffmpeg")
+    if existing:
+        return existing
+    try:
+        import imageio_ffmpeg
+    except ModuleNotFoundError:
+        return None
+
+    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+    if not ffmpeg_path or not Path(ffmpeg_path).is_file():
+        return None
+
+    ffmpeg_dir = str(Path(ffmpeg_path).parent)
+    path_parts = os.environ.get("PATH", "").split(os.pathsep)
+    if ffmpeg_dir not in path_parts:
+        os.environ["PATH"] = os.pathsep.join([ffmpeg_dir, *path_parts])
+    return ffmpeg_path
 
 
 def cmd_exist(cmd):

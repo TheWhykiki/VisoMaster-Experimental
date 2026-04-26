@@ -351,6 +351,24 @@ def wait_for_json(page, path: str, *, timeout_ms: int) -> dict[str, Any]:
     raise TimeoutError(f"Timed out waiting for {path}. Last payload: {last_payload}")
 
 
+def wait_for_any_selector(page, selectors: list[str], *, timeout_ms: int) -> str:
+    selector = ", ".join(selectors)
+    page.wait_for_selector(selector, timeout=timeout_ms)
+    return selector
+
+
+def fetch_browser_workflow(page) -> dict[str, Any]:
+    payload = page.evaluate(
+        """async () => {
+            const response = await fetch('/api/browser-workflow');
+            return await response.json();
+        }"""
+    )
+    if not isinstance(payload, dict):
+        raise AssertionError(f"Browser workflow returned an invalid payload: {payload!r}")
+    return payload
+
+
 def run_playwright_flow(
     *,
     url: str,
@@ -406,7 +424,18 @@ def run_playwright_flow(
             page.set_input_files("#targetUploadInput", str(target_path))
             with page.expect_response("**/api/browser-workflow/target", timeout=timeout_ms):
                 page.click("#uploadTargetButton")
-            page.wait_for_selector("#targetMediaPreview img", timeout=timeout_ms)
+            workflow_payload = fetch_browser_workflow(page)
+            target_media = workflow_payload.get("targetMedia") or {}
+            if target_media.get("name") != target_path.name:
+                raise AssertionError(
+                    f"Target upload did not register {target_path.name}: "
+                    f"{json.dumps(workflow_payload, indent=2)}"
+                )
+            wait_for_any_selector(
+                page,
+                ["#targetMediaPreview img", "#targetMediaPreview video", "#stageTargetVideo"],
+                timeout_ms=timeout_ms,
+            )
 
             page.set_input_files(
                 "#sourceUploadInput",
@@ -414,11 +443,33 @@ def run_playwright_flow(
             )
             with page.expect_response("**/api/browser-workflow/sources", timeout=timeout_ms):
                 page.click("#uploadSourcesButton")
+            workflow_payload = fetch_browser_workflow(page)
+            uploaded_source_names = [
+                entry.get("name") for entry in workflow_payload.get("sourceFaces") or []
+            ]
+            expected_source_names = [source_path.name for source_path in source_paths]
+            if uploaded_source_names != expected_source_names:
+                raise AssertionError(
+                    "Source upload did not register the expected files. "
+                    f"Expected {expected_source_names}, got {uploaded_source_names}. "
+                    f"Workflow: {json.dumps(workflow_payload, indent=2)}"
+                )
             page.wait_for_selector("#sourceFacePreviewList img", timeout=timeout_ms)
 
             with page.expect_response("**/api/browser-workflow/preview/frame", timeout=timeout_ms):
                 page.click("#transportPreviewButton")
-            page.wait_for_selector("#stageTargetPreview img", timeout=timeout_ms)
+            workflow_payload = fetch_browser_workflow(page)
+            if not workflow_payload.get("previewFrame"):
+                raise AssertionError(
+                    "Preview frame was not registered after clicking Preview Frame. "
+                    f"Workflow: {json.dumps(workflow_payload, indent=2)}"
+                )
+            page.wait_for_selector(
+                '#stageComparePreview img[alt="Selected target frame preview"]',
+                timeout=timeout_ms,
+            )
+            if target_media.get("fileType") == "video":
+                page.wait_for_selector("#stageTargetVideo", timeout=timeout_ms)
 
             with page.expect_response("**/api/browser-workflow/find-faces", timeout=timeout_ms):
                 page.click("#findTargetFacesButton")

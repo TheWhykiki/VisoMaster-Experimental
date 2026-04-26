@@ -7,6 +7,7 @@ set "CONDA_BAT="
 set "ENV_PYTHON="
 set "ENV_NAME=visomaster"
 set "REQUIREMENTS_FILE=requirements_cu129.txt"
+set "RUNTIME_IMPORT_CHECK=import PySide6, torch, cv2, onnxruntime, numpy, PIL, huggingface_hub, imageio_ffmpeg"
 
 if not exist "%REQUIREMENTS_FILE%" (
     echo ERROR: Requirements file "%REQUIREMENTS_FILE%" was not found.
@@ -106,7 +107,7 @@ set "EXIT_CODE=0"
 goto :eof
 
 :EnsureCondaPackages
-call "%CONDA_BAT%" run -n "%ENV_NAME%" python -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+call "%CONDA_BAT%" run -n "%ENV_NAME%" python -c "%RUNTIME_IMPORT_CHECK%" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     set "EXIT_CODE=0"
     goto :eof
@@ -138,7 +139,7 @@ set "TARGET_KIND=%~3"
 
 IF /I "%TARGET_KIND%"=="path" goto :EnsurePythonPackagesPath
 
-%TARGET_PY% -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+%TARGET_PY% -c "%RUNTIME_IMPORT_CHECK%" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     set "EXIT_CODE=0"
     goto :eof
@@ -164,7 +165,7 @@ set "EXIT_CODE=0"
 goto :eof
 
 :EnsurePythonPackagesPath
-"%TARGET_PY%" -c "import PySide6, torch, cv2, onnxruntime" >nul 2>&1
+"%TARGET_PY%" -c "%RUNTIME_IMPORT_CHECK%" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     set "EXIT_CODE=0"
     goto :eof

@@ -25,6 +25,7 @@ PREVIEW_LOG_FILE = PROCESSING_DIR / "preview_runner.log"
 LOG_TAIL_LINE_COUNT = 40
 RUNNER_BOOT_TIMEOUT_SECONDS = 120
 RUNNER_STOP_TIMEOUT_SECONDS = 15
+TERMINAL_STATUSES = {"succeeded", "failed", "stopped"}
 RUNTIME_DEPENDENCIES = {
     "PySide6": "PySide6",
     "torch": "torch",
@@ -32,6 +33,8 @@ RUNTIME_DEPENDENCIES = {
     "onnxruntime": "onnxruntime",
     "numpy": "numpy",
     "PIL": "Pillow",
+    "huggingface_hub": "huggingface-hub",
+    "imageio_ffmpeg": "imageio-ffmpeg",
 }
 
 _LOCK = threading.RLock()
@@ -217,6 +220,12 @@ def _terminate_process(
 
 def _active_process() -> subprocess.Popen[str] | None:
     global _PROCESS, _PROCESS_LOG_HANDLE
+    current_file_status = _read_json_file(STATUS_FILE).get("status")
+    if _PROCESS is not None and current_file_status in TERMINAL_STATUSES:
+        _terminate_process(_PROCESS, None)
+        _PROCESS = None
+        _close_process_log_handle()
+        return None
     if _PROCESS is not None and _PROCESS.poll() is not None:
         _PROCESS = None
         if _PROCESS_LOG_HANDLE is not None:
@@ -250,7 +259,8 @@ def _normalize_status(status: dict[str, Any]) -> dict[str, Any]:
 
     pid = normalized.get("pid")
     process_running = _is_pid_running(pid)
-    normalized["active"] = process_running
+    is_terminal = normalized.get("status") in TERMINAL_STATUSES
+    normalized["active"] = False if is_terminal else process_running
 
     transient_states = {"starting", "loading", "running", "stopping"}
     if normalized["status"] in transient_states and not process_running:
@@ -335,6 +345,17 @@ def _build_request_command(request_file: Path, status_file: Path) -> list[str]:
 def _prepare_environment() -> dict[str, str]:
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
+    try:
+        import imageio_ffmpeg
+
+        ffmpeg_path = Path(imageio_ffmpeg.get_ffmpeg_exe())
+        if ffmpeg_path.is_file():
+            ffmpeg_dir = str(ffmpeg_path.parent)
+            env_path = env.get("PATH", "")
+            if ffmpeg_dir not in env_path.split(os.pathsep):
+                env["PATH"] = os.pathsep.join([ffmpeg_dir, env_path])
+    except Exception:
+        pass
     return env
 
 

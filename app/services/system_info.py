@@ -18,6 +18,8 @@ IMPORTANT_PACKAGES = (
     "torchaudio",
     "onnxruntime-gpu",
     "opencv-python",
+    "huggingface-hub",
+    "imageio-ffmpeg",
     "pyvirtualcam",
 )
 
@@ -240,6 +242,13 @@ def _package_version(name: str) -> str | None:
 
 
 def _binary_path(name: str) -> str | None:
+    if name == "ffmpeg":
+        try:
+            from app.helpers.miscellaneous import ensure_ffmpeg_on_path
+
+            ensure_ffmpeg_on_path()
+        except Exception:
+            pass
     match = shutil.which(name)
     return str(Path(match)) if match else None
 
