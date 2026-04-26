@@ -40,6 +40,7 @@ RUNTIME_DEPENDENCIES = {
 _LOCK = threading.RLock()
 _PROCESS: subprocess.Popen[str] | None = None
 _PROCESS_LOG_HANDLE = None
+_HELPER_PROCESS: subprocess.Popen[str] | None = None
 
 
 def _iso_now() -> str:
@@ -234,6 +235,22 @@ def _active_process() -> subprocess.Popen[str] | None:
     return _PROCESS
 
 
+def _active_helper_process() -> subprocess.Popen[str] | None:
+    global _HELPER_PROCESS
+    if _HELPER_PROCESS is not None and _HELPER_PROCESS.poll() is not None:
+        _HELPER_PROCESS = None
+    return _HELPER_PROCESS
+
+
+def _ensure_no_active_processing_locked() -> None:
+    active = _active_process()
+    if active is not None and active.poll() is None:
+        raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+    helper = _active_helper_process()
+    if helper is not None and helper.poll() is None:
+        raise ValueError("Es laeuft bereits eine Browser-Hilfsverarbeitung.")
+
+
 def _close_process_log_handle() -> None:
     global _PROCESS_LOG_HANDLE
     if _PROCESS_LOG_HANDLE is not None:
@@ -359,14 +376,35 @@ def _prepare_environment() -> dict[str, str]:
     return env
 
 
+def _run_helper_request(request_file: Path, status_file: Path, log_file: Path) -> int:
+    global _HELPER_PROCESS
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    with log_file.open("w", encoding="utf-8") as log_handle:
+        process = subprocess.Popen(
+            _build_request_command(request_file, status_file),
+            cwd=project_root_path(),
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env=_prepare_environment(),
+            **_popen_creation_kwargs(),
+        )
+        with _LOCK:
+            _HELPER_PROCESS = process
+        try:
+            return process.wait()
+        finally:
+            with _LOCK:
+                if _HELPER_PROCESS is process:
+                    _HELPER_PROCESS = None
+
+
 def start_job(job_name: str) -> dict[str, Any]:
     storage.read_job(job_name)
     _ensure_runtime_dependencies()
 
     with _LOCK:
-        active = _active_process()
-        if active is not None and active.poll() is None:
-            raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+        _ensure_no_active_processing_locked()
 
         PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
         if LOG_FILE.exists():
@@ -420,9 +458,7 @@ def start_upload_run(
     )
 
     with _LOCK:
-        active = _active_process()
-        if active is not None and active.poll() is None:
-            raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+        _ensure_no_active_processing_locked()
 
         PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
         if LOG_FILE.exists():
@@ -482,16 +518,14 @@ def generate_upload_preview(
     request_payload["label"] = "Browser-Swap-Vorschau"
     preview_output_path = browser_workflow.swap_preview_output_path()
     request_payload["previewOutputPath"] = str(preview_output_path)
+    request_file = PROCESSING_DIR / "current_preview_request.json"
 
     with _LOCK:
-        active = _active_process()
-        if active is not None and active.poll() is None:
-            raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+        _ensure_no_active_processing_locked()
 
         PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
         browser_workflow.clear_swap_preview()
 
-        request_file = PROCESSING_DIR / "current_preview_request.json"
         _write_json_file(request_file, request_payload)
 
         preview_status = {
@@ -508,18 +542,15 @@ def generate_upload_preview(
         if PREVIEW_LOG_FILE.exists():
             PREVIEW_LOG_FILE.unlink()
 
-        with PREVIEW_LOG_FILE.open("w", encoding="utf-8") as log_handle:
-            process = subprocess.run(
-                _build_request_command(request_file, PREVIEW_STATUS_FILE),
-                cwd=project_root_path(),
-                stdout=log_handle,
-                stderr=subprocess.STDOUT,
-                text=True,
-                env=_prepare_environment(),
-            )
+    returncode = _run_helper_request(
+        request_file,
+        PREVIEW_STATUS_FILE,
+        PREVIEW_LOG_FILE,
+    )
 
+    with _LOCK:
         final_status = _read_json_file(PREVIEW_STATUS_FILE)
-        if process.returncode != 0:
+        if returncode != 0:
             message = _detailed_failure_message(
                 PREVIEW_STATUS_FILE,
                 PREVIEW_LOG_FILE,
@@ -553,17 +584,15 @@ def generate_found_faces(
         detection_frame=detection_frame,
         workbench_state=workbench_state,
     )
+    request_file = PROCESSING_DIR / "current_find_faces_request.json"
 
     with _LOCK:
-        active = _active_process()
-        if active is not None and active.poll() is None:
-            raise ValueError("Es laeuft bereits eine Browser-Verarbeitung.")
+        _ensure_no_active_processing_locked()
 
         PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
         browser_workflow.clear_detected_faces()
         browser_workflow.clear_swap_preview()
 
-        request_file = PROCESSING_DIR / "current_find_faces_request.json"
         _write_json_file(request_file, request_payload)
 
         preview_status = {
@@ -579,18 +608,15 @@ def generate_found_faces(
         if PREVIEW_LOG_FILE.exists():
             PREVIEW_LOG_FILE.unlink()
 
-        with PREVIEW_LOG_FILE.open("w", encoding="utf-8") as log_handle:
-            process = subprocess.run(
-                _build_request_command(request_file, PREVIEW_STATUS_FILE),
-                cwd=project_root_path(),
-                stdout=log_handle,
-                stderr=subprocess.STDOUT,
-                text=True,
-                env=_prepare_environment(),
-            )
+    returncode = _run_helper_request(
+        request_file,
+        PREVIEW_STATUS_FILE,
+        PREVIEW_LOG_FILE,
+    )
 
+    with _LOCK:
         final_status = _read_json_file(PREVIEW_STATUS_FILE)
-        if process.returncode != 0:
+        if returncode != 0:
             message = _detailed_failure_message(
                 PREVIEW_STATUS_FILE,
                 PREVIEW_LOG_FILE,
@@ -625,9 +651,41 @@ def stop_job() -> dict[str, Any]:
         status = _read_json_file(STATUS_FILE)
         pid = status.get("pid")
         process = _active_process()
+        helper_process = _active_helper_process()
 
-        if process is None and not _is_pid_running(pid):
+        if (
+            process is None
+            and helper_process is None
+            and not _is_pid_running(pid)
+        ):
             raise ValueError("Es laeuft aktuell keine Browser-Verarbeitung.")
+
+        if helper_process is not None and helper_process.poll() is None:
+            helper_status = _read_json_file(PREVIEW_STATUS_FILE)
+            helper_status.update(
+                {
+                    "status": "stopping",
+                    "message": "Browser-Hilfsverarbeitung wird gestoppt.",
+                }
+            )
+            _write_json_file(PREVIEW_STATUS_FILE, helper_status)
+            stopped = _terminate_process(helper_process, helper_process.pid)
+            global _HELPER_PROCESS
+            _HELPER_PROCESS = None
+            helper_status.update(
+                {
+                    "status": "stopped" if stopped else "failed",
+                    "message": (
+                        "Browser-Hilfsverarbeitung wurde beendet."
+                        if stopped
+                        else "Browser-Hilfsverarbeitung konnte nicht beendet werden."
+                    ),
+                    "finishedAt": _iso_now(),
+                }
+            )
+            _write_json_file(PREVIEW_STATUS_FILE, helper_status)
+            if process is None and not _is_pid_running(pid):
+                return _normalize_status(helper_status)
 
         status.update(
             {
