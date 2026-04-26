@@ -25,6 +25,9 @@ PREVIEW_LOG_FILE = PROCESSING_DIR / "preview_runner.log"
 LOG_TAIL_LINE_COUNT = 40
 RUNNER_BOOT_TIMEOUT_SECONDS = 120
 RUNNER_STOP_TIMEOUT_SECONDS = 15
+HELPER_PROCESS_TIMEOUT_SECONDS = int(
+    os.environ.get("VISOMASTER_WEB_HELPER_TIMEOUT_SECONDS", "900")
+)
 TERMINAL_STATUSES = {"succeeded", "failed", "stopped"}
 RUNTIME_DEPENDENCIES = {
     "PySide6": "PySide6",
@@ -407,7 +410,22 @@ def _run_helper_request(request_file: Path, status_file: Path, log_file: Path) -
             status["message"] = status.get("message") or "Browser-Hilfsverarbeitung wurde gestartet."
             _write_json_file(status_file, status)
         try:
-            return process.wait()
+            return process.wait(timeout=HELPER_PROCESS_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            _terminate_process(process, process.pid)
+            status = _read_json_file(status_file)
+            status.update(
+                {
+                    "status": "failed",
+                    "message": (
+                        "Die Browser-Hilfsverarbeitung hat das Zeitlimit "
+                        f"von {HELPER_PROCESS_TIMEOUT_SECONDS} Sekunden erreicht."
+                    ),
+                    "finishedAt": _iso_now(),
+                }
+            )
+            _write_json_file(status_file, status)
+            return 124
         finally:
             with _LOCK:
                 if _HELPER_PROCESS is process:

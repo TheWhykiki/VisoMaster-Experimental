@@ -107,6 +107,31 @@ class Runner:
         payload = self.request_payload.get("workbench")
         return payload if isinstance(payload, dict) else {}
 
+    def _enable_fast_flux_preview(self) -> None:
+        if self.mode != "preview":
+            return
+        workbench = self.request_payload.get("workbench")
+        if not isinstance(workbench, dict):
+            return
+        parameters = workbench.get("parameters")
+        if not isinstance(parameters, dict):
+            return
+        if parameters.get("SwapModelSelection") != "ACE++ (FLUX)":
+            return
+
+        current_steps = int(parameters.get("FluxStepsSlider", 20) or 20)
+        current_sequence = int(parameters.get("FluxMaxSequenceLengthSlider", 512) or 512)
+        parameters["FluxStepsSlider"] = max(4, min(current_steps, 4))
+        parameters["FluxMaxSequenceLengthSlider"] = max(64, min(current_sequence, 256))
+        self._write_status(
+            status="loading",
+            message=(
+                "Schnelle FLUX-Vorschau aktiv: "
+                f"{parameters['FluxStepsSlider']} Schritte, "
+                f"max. Sequenz {parameters['FluxMaxSequenceLengthSlider']}."
+            ),
+        )
+
     def _apply_workbench_control(self) -> None:
         if not self.main_window:
             raise RuntimeError("MainWindow ist nicht initialisiert.")
@@ -543,6 +568,7 @@ class Runner:
                 message="Geswappte Vorschau wird in der Desktop-Pipeline berechnet.",
             )
             try:
+                self._enable_fast_flux_preview()
                 self._prepare_direct_upload()
                 preview_output_path = str(
                     self.request_payload.get("previewOutputPath", "")

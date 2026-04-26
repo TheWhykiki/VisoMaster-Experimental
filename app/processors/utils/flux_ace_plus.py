@@ -514,9 +514,38 @@ class FluxAcePlusSwapper:
                 )
             call_kwargs["image_reference"] = source_image
 
+        step_count = int(call_kwargs["num_inference_steps"])
+        print(
+            "ACE++ (FLUX): starting inference "
+            f"steps={step_count}, size={target_image.width}x{target_image.height}, "
+            f"device={self.models_processor.device}, "
+            f"cpu_offload={bool(parameters.get('FluxCPUOffloadToggle', True))}",
+            flush=True,
+        )
+        if "callback_on_step_end" in call_signature.parameters:
+            def _on_step_end(_pipeline, step_index, _timestep, callback_kwargs):
+                print(
+                    f"ACE++ (FLUX): inference step {int(step_index) + 1}/{step_count}",
+                    flush=True,
+                )
+                return callback_kwargs
+
+            call_kwargs["callback_on_step_end"] = _on_step_end
+        elif "callback" in call_signature.parameters:
+            def _on_step(step_index, _timestep, _latents):
+                print(
+                    f"ACE++ (FLUX): inference step {int(step_index) + 1}/{step_count}",
+                    flush=True,
+                )
+
+            call_kwargs["callback"] = _on_step
+            if "callback_steps" in call_signature.parameters:
+                call_kwargs["callback_steps"] = 1
+
         with torch.inference_mode():
             result = pipeline(**call_kwargs).images[0]
 
+        print("ACE++ (FLUX): inference complete", flush=True)
         result_np = np.asarray(result.convert("RGB"), dtype=np.uint8).copy()
         result_tensor = torch.from_numpy(result_np).permute(2, 0, 1).to(torch.float32)
         return result_tensor.to(self.models_processor.device)
